@@ -1,0 +1,43 @@
+{% comment %}
+Sign-in form, shared by the login page and the sign-in modal.
+Context: prefix (id prefix, keeps ids unique), modal (bool), login_error,
+email (value to keep after an error), next.
+{% endcomment %}
+<form method="post" action="{% url 'login' %}" novalidate
+      {% if modal %}data-auth-form{% endif %}>
+    {% csrf_token %}
+    <input type="hidden" name="next" value="{{ next|default:'' }}">
+
+    {% if login_error %}
+        <div class="alert alert-danger py-2" role="alert">
+            <i class="bi bi-exclamation-triangle-fill me-1"></i> {{ login_error }}
+        </div>
+    {% endif %}
+
+    <div class="mb-3">
+        <label for="{{ prefix }}login-email" class="form-label">Email address</label>
+        <div class="input-group">
+            <span class="input-group-text"><i class="bi bi-envelope"></i></span>
+            <input type="email" name="email" id="{{ prefix }}login-email"
+                   class="form-control{% if login_error %} is-invalid{% endif %}"
+                   value="{{ email|default:'' }}" placeholder="you@university.edu"
+                   autocomplete="email" required
+                   {% if not modal %}autofocus{% endif %}>
+        </div>
+    </div>
+
+    <div class="mb-3">
+        <label for="{{ prefix }}login-password" class="form-label">Password</label>
+        <div class="input-group">
+            <span class="input-group-text"><i class="bi bi-lock"></i></span>
+            <input type="password" name="password" id="{{ prefix }}login-password"
+                   class="form-control{% if login_error %} is-invalid{% endif %}"
+                   placeholder="Your password" autocomplete="current-password" required>
+        </div>
+    </div>
+
+    <button type="submit" class="btn btn-primary w-100">
+        <span class="spinner-border spinner-border-sm me-1 d-none" aria-hidden="true"></span>
+        <i class="bi bi-box-arrow-in-right"></i> Sign in
+    </button>
+</form>

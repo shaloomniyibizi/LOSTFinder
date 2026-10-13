@@ -1,4 +1,5 @@
 from django import forms
+from django.core.validators import MaxLengthValidator
 from django.contrib.auth import get_user_model
 from django.contrib.auth.forms import AuthenticationForm, UserCreationForm
 from django.contrib.auth.password_validation import validate_password
@@ -97,6 +98,13 @@ class EmailAuthenticationForm(AuthenticationForm):
 
 
 class OnboardingForm(forms.ModelForm):
+    """
+    Profile details collected at onboarding (and on the profile page).
+
+    The role field is only offered to staff: everyone else is a student,
+    and security officers are appointed in the admin.
+    """
+
     class Meta:
         model = UserProfile
         fields = [
@@ -104,43 +112,73 @@ class OnboardingForm(forms.ModelForm):
             'student_id', 'faculty', 'program',
             'year_of_study', 'bio'
         ]
+        labels = {
+            "phone_number": "Phone number",
+            "student_id": "Student / staff ID",
+            "user_type": "Role",
+            "year_of_study": "Year of study",
+            "bio": "About you",
+        }
         widgets = {
             "phone_number": forms.TextInput(attrs={
                 "class": "form-control",
-                "placeholder": "e.g. +250 7XX XXX XXX",
+                "placeholder": "07XXXXXXXX",
+                "inputmode": "tel",
+                "autocomplete": "tel",
             }),
             "address": forms.TextInput(attrs={
                 "class": "form-control",
-                "placeholder": "Your current address",
+                "placeholder": "Hostel, street or neighbourhood",
+                "autocomplete": "street-address",
             }),
             "profile_photo": forms.FileInput(attrs={
-                "class": "form-control",
+                "class": "visually-hidden",
                 "accept": "image/*",
+            }),
+            "user_type": forms.Select(attrs={
+                "class": "form-select",
             }),
             "student_id": forms.TextInput(attrs={
                 "class": "form-control",
-                "placeholder": "University student ID",
+                "placeholder": "e.g. S2024-0142",
             }),
             "faculty": forms.TextInput(attrs={
                 "class": "form-control",
-                "placeholder": "Faculty or school",
+                "placeholder": "e.g. Engineering",
             }),
             "program": forms.TextInput(attrs={
                 "class": "form-control",
-                "placeholder": "Degree or academic program",
+                "placeholder": "e.g. Computer Science",
             }),
             "year_of_study": forms.Select(attrs={
-                "class": "form-control",
+                "class": "form-select",
             }),
             "bio": forms.Textarea(attrs={
                 "class": "form-control",
                 "rows": 3,
-                "placeholder": "Tell us a bit about yourself",
+                "maxlength": 500,
+                "placeholder": "A sentence or two, e.g. what you study or where you usually are on campus.",
             }),
         }
+        help_texts = {
+            "phone_number": "10 digits. Only shared with campus security when you claim an item.",
+            "profile_photo": "Optional. A clear photo helps security confirm it's you at handover.",
+        }
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, allow_role=False, **kwargs):
         super().__init__(*args, **kwargs)
+
+        if not allow_role:
+            self.fields.pop("user_type")
+
+        # Accept "078 812 3456" / "078-812-3456": the model's 10-character
+        # limit is enforced by clean_phone_number after separators are removed.
+        phone = self.fields["phone_number"]
+        phone.max_length = 16
+        phone.validators = [
+            v for v in phone.validators if not isinstance(v, MaxLengthValidator)
+        ]
+        phone.widget.attrs["maxlength"] = 16
 
         for field_name in [
             "phone_number",
@@ -152,3 +190,9 @@ class OnboardingForm(forms.ModelForm):
             "bio"
         ]:
             self.fields[field_name].required = True
+
+    def clean_phone_number(self):
+        phone = "".join(self.cleaned_data["phone_number"].replace("-", " ").split())
+        if not phone.isdigit() or len(phone) != 10:
+            raise forms.ValidationError("Enter a 10-digit phone number, e.g. 0788123456.")
+        return phone

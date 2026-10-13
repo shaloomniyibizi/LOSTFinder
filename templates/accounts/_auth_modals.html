@@ -1,0 +1,48 @@
+{% comment %}
+Sign-in and register modals for visitors. Forms submit in the background
+(static/js/auth-modals.js); without JavaScript the triggers fall back to the
+full /accounts/login/ and /accounts/register/ pages.
+{% endcomment %}
+<div class="modal fade" id="loginModal" tabindex="-1" aria-labelledby="loginModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header border-0 pb-0">
+                <div>
+                    <h2 class="modal-title h4 fw-bold" id="loginModalLabel">Welcome back</h2>
+                    <p class="text-secondary small mb-0">Sign in with your email and password.</p>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" data-auth-body>
+                {% include "accounts/_login_form.html" with prefix="modal-" modal=True next=request.GET.next %}
+            </div>
+            <div class="modal-footer border-0 pt-0 justify-content-center">
+                <span class="small text-secondary">New here?</span>
+                <a href="{% url 'register' %}" class="small"
+                   data-bs-target="#registerModal" data-bs-toggle="modal">Create an account</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="registerModal" tabindex="-1" aria-labelledby="registerModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header border-0 pb-0">
+                <div>
+                    <h2 class="modal-title h4 fw-bold" id="registerModalLabel">Create an account</h2>
+                    <p class="text-secondary small mb-0">Register to report lost or found property on campus.</p>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" data-auth-body>
+                {% include "accounts/_register_form.html" with prefix="modal-" modal=True form=None %}
+            </div>
+            <div class="modal-footer border-0 pt-0 justify-content-center">
+                <span class="small text-secondary">Already registered?</span>
+                <a href="{% url 'login' %}" class="small"
+                   data-bs-target="#loginModal" data-bs-toggle="modal">Sign in</a>
+            </div>
+        </div>
+    </div>
+</div>

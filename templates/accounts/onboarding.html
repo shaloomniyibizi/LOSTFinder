@@ -1,68 +1,47 @@
-
 {% extends "base_public.html" %}
+{% load static %}
 
-{% block title %}Complete Your Profile{% endblock %}
+{% block title %}Complete your profile{% endblock %}
 
 {% block content %}
 <div class="row justify-content-center">
-    <div class="col-lg-8">
-        <div class="card shadow-sm">
-            <div class="card-body p-4">
-                <h1 class="h3">Complete your profile</h1>
-                <p class="text-muted">
-                    Logged in as {{ request.user.email }}.
-                    Fill in your details to continue.
+    <div class="col-lg-9 col-xl-8">
+        <div class="card shadow-sm border-0 overflow-hidden">
+            <div class="lf-onboarding-header p-4">
+                <ol class="lf-steps" aria-label="Sign-up progress">
+                    <li class="done"><span><i class="bi bi-check-lg"></i></span> Account</li>
+                    <li class="active" aria-current="step"><span>2</span> Profile</li>
+                    <li><span>3</span> Start</li>
+                </ol>
+                <h1 class="h3 fw-bold mb-1">Complete your profile</h1>
+                <p class="mb-0 opacity-75">
+                    Signed in as <strong>{{ request.user.email }}</strong>. These details let campus
+                    security verify you when you collect an item.
                 </p>
-
-                <form method="post" enctype="multipart/form-data">
-                    {% csrf_token %}
-                    {{ form.non_field_errors }}
-
-
-                    
-<div class="mb-3">
-    <label for="{{ form.profile_photo.id_for_label }}" class="form-label">
-        Profile photo
-    </label>
-
-    {% if form.instance.profile_photo %}
-        <div class="mb-3">
-            <img src="{{ form.instance.profile_photo.url }}"
-                 alt="Current profile photo"
-                 class="rounded-circle border"
-                 style="width: 120px; height: 120px; object-fit: cover;">
-        </div>
-    {% endif %}
-
-    {{ form.profile_photo }}
-
-    {% if form.profile_photo.help_text %}
-        <small class="form-text text-muted">
-            {{ form.profile_photo.help_text }}
-        </small>
-    {% endif %}
-
-    {% for error in form.profile_photo.errors %}
-        <div class="text-danger">{{ error }}</div>
-    {% endfor %}
-</div>
-
-
-                    {% for field in form %}
-                        {% if field.name != "profile_photo" %}
-            <div class="mb-3"> 
-                {{ field }}
-                {{ field.errors }}
             </div>
-        {% endif %} 
-                    {% endfor %}
 
-                    <button class="btn btn-primary" type="submit">
-                        Save profile and continue
-                    </button>
+            <div class="card-body p-4">
+                {% include "claims/_messages.html" %}
+
+                <form method="post" enctype="multipart/form-data" novalidate>
+                    {% csrf_token %}
+                    {% include "accounts/_profile_fields.html" %}
+
+                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 pt-2">
+                        <span class="small text-secondary">
+                            <span class="text-danger">*</span> Required. You can change these later in <em>My profile</em>.
+                        </span>
+                        <button class="btn btn-primary px-4" type="submit">
+                            Save and continue <i class="bi bi-arrow-right"></i>
+                        </button>
+                    </div>
                 </form>
             </div>
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/profile-form.js' %}"></script>
 {% endblock %}

@@ -48,8 +48,10 @@
                             </button>
                         </form>
                     {% else %}
-                        <a class="btn btn-link text-decoration-none" href="{% url 'login' %}">Sign in</a>
-                        <a class="btn btn-primary btn-sm" href="{% url 'register' %}">
+                        <a class="btn btn-link text-decoration-none" href="{% url 'login' %}"
+                           data-bs-toggle="modal" data-bs-target="#loginModal">Sign in</a>
+                        <a class="btn btn-primary btn-sm" href="{% url 'register' %}"
+                           data-bs-toggle="modal" data-bs-target="#registerModal">
                             <i class="bi bi-person-plus"></i> Register
                         </a>
                     {% endif %}
@@ -77,6 +79,10 @@
 
 <script src="{% static 'vendor/bootstrap/js/bootstrap.bundle.min.js' %}"></script>
 <script src="{% static 'vendor/adminlte/js/adminlte.min.js' %}"></script>
+{% if not request.user.is_authenticated %}
+    {% include "accounts/_auth_modals.html" %}
+    <script src="{% static 'js/auth-modals.js' %}"></script>
+{% endif %}
 {% block extra_js %}{% endblock %}
 </body>
 </html>

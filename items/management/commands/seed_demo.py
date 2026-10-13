@@ -257,6 +257,12 @@ class Command(BaseCommand):
             found["student_id"], users["daniel"],
             "Card number S2023-0871, my photo shows me wearing glasses.",
         )
+        # Submitted ~6 hours before the handover below, so the
+        # "average claim-to-handover" statistic comes out realistic.
+        Claim.objects.filter(pk=claim.pk).update(
+            submitted_at=now - timedelta(days=1, hours=2)
+        )
+        claim.refresh_from_db()
         claim_services.review_claim(
             claim, officer, Claim.Status.APPROVED, "Card number verified.",
         )

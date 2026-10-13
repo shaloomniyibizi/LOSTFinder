@@ -1,0 +1,76 @@
+{% comment %}
+Sectioned profile fields shared by onboarding and "My profile".
+Expects `form` (OnboardingForm). The Role field only exists for staff.
+{% endcomment %}
+{% for error in form.non_field_errors %}
+    <div class="alert alert-danger"><i class="bi bi-exclamation-triangle-fill me-1"></i>{{ error }}</div>
+{% endfor %}
+
+{# ---------- Photo ---------- #}
+<section class="lf-form-section">
+    <div class="lf-avatar-picker">
+        <div class="lf-avatar" data-avatar-preview>
+            {% if form.instance.profile_photo %}
+                <img src="{{ form.instance.profile_photo.url }}" alt="Your profile photo">
+            {% else %}
+                <span aria-hidden="true">{{ request.user.email|first|upper }}</span>
+            {% endif %}
+        </div>
+        <div>
+            <div class="fw-semibold">Profile photo</div>
+            {{ form.profile_photo }}
+            <label for="{{ form.profile_photo.id_for_label }}" class="btn btn-outline-primary btn-sm mt-1">
+                <i class="bi bi-camera"></i>
+                <span data-avatar-label>{% if form.instance.profile_photo %}Change photo{% else %}Upload photo{% endif %}</span>
+            </label>
+            <div class="form-text">{{ form.profile_photo.help_text }}</div>
+            {% for error in form.profile_photo.errors %}
+                <div class="invalid-feedback d-block">{{ error }}</div>
+            {% endfor %}
+        </div>
+    </div>
+</section>
+
+{# ---------- Contact ---------- #}
+<section class="lf-form-section">
+    <h2 class="lf-section-heading"><i class="bi bi-person-lines-fill"></i> Contact details</h2>
+    <div class="row g-3">
+        <div class="col-md-6">
+            {% include "accounts/_icon_field.html" with field=form.phone_number icon="bi-telephone" %}
+        </div>
+        <div class="col-md-6">
+            {% include "accounts/_icon_field.html" with field=form.address icon="bi-geo-alt" %}
+        </div>
+    </div>
+</section>
+
+{# ---------- Academic ---------- #}
+<section class="lf-form-section">
+    <h2 class="lf-section-heading"><i class="bi bi-mortarboard"></i> Academic details</h2>
+    <div class="row g-3">
+        {% if form.user_type %}
+            <div class="col-md-6">
+                {% include "accounts/_icon_field.html" with field=form.user_type icon="bi-person-badge" %}
+            </div>
+        {% endif %}
+        <div class="col-md-6">
+            {% include "accounts/_icon_field.html" with field=form.student_id icon="bi-person-vcard" %}
+        </div>
+        <div class="col-md-6">
+            {% include "accounts/_icon_field.html" with field=form.faculty icon="bi-building" %}
+        </div>
+        <div class="col-md-6">
+            {% include "accounts/_icon_field.html" with field=form.program icon="bi-journal-bookmark" %}
+        </div>
+        <div class="col-md-6">
+            {% include "accounts/_icon_field.html" with field=form.year_of_study icon="bi-calendar3" %}
+        </div>
+    </div>
+</section>
+
+{# ---------- About ---------- #}
+<section class="lf-form-section">
+    <h2 class="lf-section-heading"><i class="bi bi-chat-quote"></i> About you</h2>
+    {% include "accounts/_icon_field.html" with field=form.bio icon="bi-pencil" %}
+    <div class="form-text text-end" data-char-count-for="{{ form.bio.id_for_label }}" aria-live="polite"></div>
+</section>

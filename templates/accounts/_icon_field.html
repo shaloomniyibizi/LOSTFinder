@@ -1,0 +1,19 @@
+{% comment %}
+One form field with a leading icon, label, errors and help text.
+Usage: {% include "accounts/_icon_field.html" with field=form.phone_number icon="bi-telephone" %}
+{% endcomment %}
+<div class="lf-field{% if field.errors %} lf-field-invalid{% endif %}">
+    <label for="{{ field.id_for_label }}" class="form-label fw-medium">
+        {{ field.label }}{% if field.field.required %}<span class="text-danger ms-1" aria-hidden="true">*</span>{% endif %}
+    </label>
+    <div class="input-group">
+        <span class="input-group-text"><i class="bi {{ icon }}" aria-hidden="true"></i></span>
+        {{ field }}
+    </div>
+    {% for error in field.errors %}
+        <div class="invalid-feedback d-block"><i class="bi bi-exclamation-circle me-1"></i>{{ error }}</div>
+    {% endfor %}
+    {% if field.help_text %}
+        <div class="form-text">{{ field.help_text }}</div>
+    {% endif %}
+</div>

@@ -57,6 +57,10 @@ class SeedDemoTests(TestCase):
         self.assertEqual(claims["Set of 3 keys on red lanyard"], Claim.Status.SUBMITTED)
         self.assertEqual(ItemHandover.objects.count(), 1)
 
+        # The handover happens after the claim, never before it.
+        handover = ItemHandover.objects.select_related("claim").get()
+        self.assertGreater(handover.handed_over_at, handover.claim.submitted_at)
+
         self.assertEqual(
             LostItem.objects.get(title="Lost student ID card").status,
             LostItem.Status.RETURNED,

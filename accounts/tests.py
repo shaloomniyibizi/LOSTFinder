@@ -206,3 +206,187 @@ class AuthFlowTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertNotIn("_auth_user_id", self.client.session)
+        self.assertContains(response, "Invalid email address or password.")
+
+    def test_login_honours_safe_next_only(self):
+        make_user("ready")
+        target = reverse("lost_item_create")
+
+        response = self.client.post(reverse("login"), {
+            "email": "ready@uni.edu", "password": PASSWORD, "next": target,
+        })
+        self.assertRedirects(response, target)
+
+        self.client.logout()
+        response = self.client.post(reverse("login"), {
+            "email": "ready@uni.edu", "password": PASSWORD,
+            "next": "https://evil.example/steal",
+        })
+        self.assertRedirects(response, reverse("dashboard"))
+
+    def test_onboarding_wins_over_next(self):
+        make_user("pending", onboarded=False)
+
+        response = self.client.post(reverse("login"), {
+            "email": "pending@uni.edu", "password": PASSWORD,
+            "next": reverse("lost_item_list"),
+        })
+
+        self.assertRedirects(response, reverse("onboarding"))
+
+    def test_login_page_keeps_next_from_redirect(self):
+        protected = reverse("lost_item_create")
+        response = self.client.get(protected, follow=True)
+
+        self.assertContains(response, f'name="next" value="{protected}"')
+
+
+AJAX = {"HTTP_X_REQUESTED_WITH": "XMLHttpRequest"}
+
+
+class AuthModalTests(TestCase):
+    """The sign-in/register modals submit in the background and get JSON."""
+
+    def test_modals_on_public_pages_for_visitors(self):
+        for name in ("home", "login", "register"):
+            with self.subTest(page=name):
+                response = self.client.get(reverse(name))
+                self.assertContains(response, 'id="loginModal"')
+                self.assertContains(response, 'id="registerModal"')
+                self.assertContains(response, "/static/js/auth-modals.js")
+                self.assertContains(response, 'data-bs-target="#loginModal"')
+
+    def test_no_modals_once_signed_in(self):
+        self.client.force_login(make_user("pending", onboarded=False))
+
+        response = self.client.get(reverse("onboarding"))
+
+        self.assertNotContains(response, 'id="loginModal"')
+        self.assertNotContains(response, "auth-modals.js")
+
+    def test_home_protected_links_open_the_modal(self):
+        html = self.client.get(reverse("home")).content.decode()
+
+        self.assertIn(f'data-auth-required class="btn btn-warning" href="{reverse("lost_item_create")}"', html)
+        self.assertIn('role="search" data-auth-required', html)
+
+    def test_modal_login_success_returns_redirect(self):
+        make_user("ready")
+
+        response = self.client.post(reverse("login"), {
+            "email": "ready@uni.edu", "password": PASSWORD,
+            "next": reverse("match_list"),
+        }, **AJAX)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {"redirect": reverse("match_list")})
+        self.assertIn("_auth_user_id", self.client.session)
+
+    def test_modal_login_failure_returns_form_with_error(self):
+        make_user("ready")
+
+        response = self.client.post(reverse("login"), {
+            "email": "ready@uni.edu", "password": "wrong", "next": "/items/lost/",
+        }, **AJAX)
+
+        self.assertEqual(response.status_code, 400)
+        html = response.json()["html"]
+        self.assertIn("Invalid email address or password.", html)
+        self.assertIn('value="ready@uni.edu"', html)       # email kept
+        self.assertIn('value="/items/lost/"', html)         # next kept
+        self.assertIn("data-auth-form", html)               # still a modal form
+        self.assertIn('id="modal-login-email"', html)
+        self.assertNotIn("_auth_user_id", self.client.session)
+
+    def test_modal_register_success_goes_to_onboarding(self):
+        response = self.client.post(reverse("register"), {
+            "email": "new@uni.edu", "password1": PASSWORD, "password2": PASSWORD,
+        }, **AJAX)
+
+        self.assertEqual(response.json(), {"redirect": reverse("onboarding")})
+        self.assertTrue(get_user_model().objects.filter(email="new@uni.edu").exists())
+
+    def test_modal_register_errors_render_in_place(self):
+        make_user("taken")
+
+        response = self.client.post(reverse("register"), {
+            "email": "taken@uni.edu", "password1": PASSWORD, "password2": "different",
+        }, **AJAX)
+
+        self.assertEqual(response.status_code, 400)
+        html = response.json()["html"]
+        self.assertIn("An account with that email already exists.", html)
+        self.assertIn("is-invalid", html)
+        self.assertIn('id="modal-register-email"', html)
+        self.assertEqual(get_user_model().objects.count(), 1)
+
+    def test_weak_password_error_shown(self):
+        response = self.client.post(reverse("register"), {
+            "email": "weak@uni.edu", "password1": "password", "password2": "password",
+        }, **AJAX)
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("too common", response.json()["html"])
+
+
+class OnboardingFormTests(TestCase):
+    def test_page_renders_sections_with_icons(self):
+        self.client.force_login(make_user("newbie", onboarded=False))
+
+        response = self.client.get(reverse("onboarding"))
+
+        for text in ("Contact details", "Academic details", "About you",
+                     "bi-telephone", "bi-person-vcard", "bi-mortarboard",
+                     'aria-current="step"', "Upload photo", "profile-form.js"):
+            self.assertContains(response, text)
+
+    def test_role_field_only_for_staff(self):
+        self.client.force_login(make_user("student", onboarded=False))
+        self.assertNotContains(self.client.get(reverse("onboarding")), 'name="user_type"')
+
+        self.client.force_login(make_user("boss", onboarded=False, is_staff=True))
+        self.assertContains(self.client.get(reverse("onboarding")), 'name="user_type"')
+
+    def test_staff_can_set_their_role(self):
+        staff = make_user("boss", onboarded=False, is_staff=True)
+        self.client.force_login(staff)
+
+        self.client.post(reverse("onboarding"), {
+            **ONBOARDING_DATA, "user_type": UserProfile.UserType.SECURITY,
+        })
+
+        staff.profile.refresh_from_db()
+        self.assertEqual(staff.profile.user_type, UserProfile.UserType.SECURITY)
+
+    def test_phone_number_is_normalised_and_validated(self):
+        user = make_user("newbie", onboarded=False)
+        self.client.force_login(user)
+
+        bad = self.client.post(reverse("onboarding"), {
+            **ONBOARDING_DATA, "phone_number": "+250 788",
+        })
+        self.assertContains(bad, "Enter a 10-digit phone number")
+        self.assertContains(bad, "lf-field-invalid")
+
+        self.client.post(reverse("onboarding"), {
+            **ONBOARDING_DATA, "phone_number": "078 812 3456",
+        })
+        user.profile.refresh_from_db()
+        self.assertEqual(user.profile.phone_number, "0788123456")
+        self.assertTrue(user.profile.onboarding_completed)
+
+    def test_required_errors_shown_per_field(self):
+        self.client.force_login(make_user("newbie", onboarded=False))
+
+        response = self.client.post(reverse("onboarding"), {})
+
+        self.assertContains(response, "This field is required.", count=7)
+
+    def test_profile_page_uses_same_layout(self):
+        self.client.force_login(make_user("ready"))
+
+        response = self.client.get(reverse("profile"))
+
+        self.assertContains(response, "Academic details")
+        self.assertContains(response, "bi-telephone")
+        self.assertNotContains(response, 'name="user_type"')
