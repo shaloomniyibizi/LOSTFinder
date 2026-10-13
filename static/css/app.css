@@ -1,0 +1,109 @@
+/* LOSTFinder additions on top of AdminLTE */
+
+/* Chart tokens: two-series palette validated for each surface. */
+:root {
+    --lf-series-lost: #2a78d6;
+    --lf-series-found: #eb6834;
+    --lf-grid: #e1e0d9;
+    --lf-axis-text: #6c6b66;
+    --lf-chart-surface: #ffffff;
+}
+
+[data-bs-theme="dark"] {
+    --lf-series-lost: #3987e5;
+    --lf-series-found: #d95926;
+    --lf-grid: #373b3e;
+    --lf-axis-text: #9a9da0;
+    --lf-chart-surface: #212529;
+}
+
+.lf-brand-mark {
+    display: inline-grid !important;
+    place-items: center;
+    width: 33px;
+    height: 33px;
+    border-radius: 8px;
+    background: #0f1d3a;
+    color: #f7b56b;
+    font-weight: 800;
+    font-size: .8rem;
+    float: none !important;
+    max-height: none !important;
+}
+
+.lf-dropdown-title { max-width: 12rem; }
+
+.lf-theme-menu { --bs-dropdown-min-width: 9rem; }
+
+.small-box .small-box-icon { opacity: .35; }
+
+.small-box .inner h3 {
+    font-variant-numeric: tabular-nums;
+}
+
+.lf-chart {
+    position: relative;
+    height: 280px;
+}
+
+.lf-chart-sm { height: 240px; }
+
+.lf-updated {
+    font-size: .75rem;
+    color: var(--bs-secondary-color);
+}
+
+.lf-pulse { animation: lf-pulse 1.2s ease-out; }
+
+@keyframes lf-pulse {
+    0% { background-color: rgba(255, 255, 255, .45); }
+    100% { background-color: transparent; }
+}
+
+.table td,
+.table th { vertical-align: middle; }
+
+.lf-table-num { font-variant-numeric: tabular-nums; }
+
+/* ---------- Public home page ---------- */
+
+.lf-hero-card { min-height: 320px; }
+
+.lf-hero-card .card-img {
+    object-fit: cover;
+    position: absolute;
+    inset: 0;
+}
+
+.lf-hero-caption {
+    background: rgba(10, 20, 40, .72);
+    color: #fff;
+    align-self: stretch;
+}
+
+.lf-live-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #22c55e;
+    box-shadow: 0 0 0 3px rgba(34, 197, 94, .25);
+    vertical-align: middle;
+    margin-right: .25rem;
+}
+
+.lf-report-img {
+    aspect-ratio: 16 / 9;
+    object-fit: cover;
+}
+
+.lf-report-card { transition: transform .2s, box-shadow .2s; }
+
+.lf-report-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--bs-box-shadow) !important;
+}
+
+.lf-protocol {
+    background: linear-gradient(135deg, #0f1d3a, #0a1428) !important;
+}

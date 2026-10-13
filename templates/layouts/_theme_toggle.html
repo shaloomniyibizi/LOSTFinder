@@ -1,0 +1,35 @@
+{% comment %} Light / Dark / Auto switcher. AdminLTE's colour-mode script handles the
+   clicks, saves the choice, and toggles the active icon and check marks. {% endcomment %}
+<li class="nav-item dropdown">
+    <button class="btn btn-link nav-link dropdown-toggle d-flex align-items-center"
+            type="button" data-bs-toggle="dropdown" aria-expanded="false"
+            aria-label="Change colour theme" title="Change colour theme">
+        <i class="bi bi-sun-fill" data-lte-theme-icon="light" aria-hidden="true"></i>
+        <i class="bi bi-moon-stars-fill d-none" data-lte-theme-icon="dark" aria-hidden="true"></i>
+        <i class="bi bi-circle-half d-none" data-lte-theme-icon="auto" aria-hidden="true"></i>
+        <span class="d-lg-none ms-2">Theme</span>
+    </button>
+    <ul class="dropdown-menu dropdown-menu-end lf-theme-menu">
+        <li>
+            <button type="button" class="dropdown-item d-flex align-items-center"
+                    data-bs-theme-value="light" aria-pressed="false">
+                <i class="bi bi-sun-fill me-2" aria-hidden="true"></i> Light
+                <i class="bi bi-check-lg ms-auto d-none" aria-hidden="true"></i>
+            </button>
+        </li>
+        <li>
+            <button type="button" class="dropdown-item d-flex align-items-center"
+                    data-bs-theme-value="dark" aria-pressed="false">
+                <i class="bi bi-moon-stars-fill me-2" aria-hidden="true"></i> Dark
+                <i class="bi bi-check-lg ms-auto d-none" aria-hidden="true"></i>
+            </button>
+        </li>
+        <li>
+            <button type="button" class="dropdown-item d-flex align-items-center"
+                    data-bs-theme-value="auto" aria-pressed="false">
+                <i class="bi bi-circle-half me-2" aria-hidden="true"></i> Auto
+                <i class="bi bi-check-lg ms-auto d-none" aria-hidden="true"></i>
+            </button>
+        </li>
+    </ul>
+</li>

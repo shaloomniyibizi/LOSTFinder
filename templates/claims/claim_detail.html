@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+
+{% block title %}Claim #{{ claim.pk }}{% endblock %}
+
+{% block breadcrumbs %}
+    <li class="breadcrumb-item"><a href="{% if user_is_reviewer %}{% url 'review_queue' %}{% else %}{% url 'claim_list' %}{% endif %}">{% if user_is_reviewer %}Review queue{% else %}My claims{% endif %}</a></li>
+    <li class="breadcrumb-item active" aria-current="page">Claim #{{ claim.pk }}</li>
+{% endblock %}
+
+{% block content %}
+{% include "claims/_messages.html" %}
+
+<div class="row g-4">
+    <div class="col-lg-7">
+        <div class="card shadow-sm">
+            <div class="card-body p-4">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <small class="text-muted">Claim #{{ claim.pk }}</small>
+                        <h1 class="h3 mb-1">{{ claim.found_item.title }}</h1>
+                    </div>
+                    {% include "claims/_status_badge.html" with status=claim.status label=claim.get_status_display %}
+                </div>
+
+                <p class="text-muted">
+                    {{ claim.found_item.category.name }} · found at
+                    {{ claim.found_item.location }} on {{ claim.found_item.date_found }}
+                </p>
+
+                <dl class="row mb-0">
+                    <dt class="col-sm-4">Claimant</dt>
+                    <dd class="col-sm-8">
+                        {% if show_evidence %}{{ claim.claimant.email }}{% else %}Hidden for privacy{% endif %}
+                    </dd>
+                    <dt class="col-sm-4">Submitted</dt>
+                    <dd class="col-sm-8">{{ claim.submitted_at }}</dd>
+                    {% if show_evidence %}
+                        <dt class="col-sm-4">Proof of ownership</dt>
+                        <dd class="col-sm-8">{{ claim.evidence_description|linebreaksbr }}</dd>
+                    {% endif %}
+                </dl>
+
+                {% if handover %}
+                    <div class="alert alert-success mt-4 mb-0">
+                        <strong>Handed over</strong> on {{ handover.handed_over_at }}
+                        at {{ handover.handover_location }}.
+                        {% if handover.notes and show_evidence %}<br><small>{{ handover.notes }}</small>{% endif %}
+                    </div>
+                {% elif claim.status == "approved" and is_claimant %}
+                    <div class="alert alert-success mt-4 mb-0">
+                        Your claim was approved. Bring your university ID to the Campus
+                        Security Office to collect the item.
+                    </div>
+                {% endif %}
+
+                <div class="d-flex flex-wrap gap-2 mt-4">
+                    <a class="btn btn-outline-secondary" href="{% url 'found_item_detail' claim.found_item.pk %}">View item</a>
+                    {% if user_is_reviewer %}
+                        <a class="btn btn-outline-secondary" href="{% url 'review_queue' %}">Review queue</a>
+                    {% else %}
+                        <a class="btn btn-outline-secondary" href="{% url 'claim_list' %}">My claims</a>
+                    {% endif %}
+                    {% if can_cancel %}
+                        <form method="post" action="{% url 'claim_cancel' claim.pk %}" class="m-0">
+                            {% csrf_token %}
+                            <button class="btn btn-outline-danger" type="submit">Cancel claim</button>
+                        </form>
+                    {% endif %}
+                    {% if can_handover %}
+                        <a class="btn btn-success" href="{% url 'claim_handover' claim.pk %}">Record handover</a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        {% if can_review %}
+            <div class="card shadow-sm mt-4">
+                <div class="card-body p-4">
+                    <h2 class="h5">Review this claim</h2>
+                    <form method="post" action="{% url 'claim_review' claim.pk %}">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label class="form-label" for="{{ review_form.decision.id_for_label }}">Decision</label>
+                            {{ review_form.decision }}
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label" for="{{ review_form.comments.id_for_label }}">Comments</label>
+                            {{ review_form.comments }}
+                        </div>
+                        <button class="btn btn-primary" type="submit">Save decision</button>
+                    </form>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+
+    <div class="col-lg-5">
+        <div class="card shadow-sm">
+            <div class="card-body p-4">
+                <h2 class="h5">Timeline</h2>
+                <ul class="list-unstyled mb-0">
+                    {% for log in logs %}
+                        <li class="border-start border-3 ps-3 pb-3">
+                            {% include "claims/_status_badge.html" with status=log.decision label=log.get_decision_display %}
+                            <small class="text-muted d-block">{{ log.created_at|date:"M j, Y H:i" }}</small>
+                            {% if show_evidence and log.comments %}
+                                <small class="d-block mt-1">{{ log.comments }}</small>
+                            {% endif %}
+                        </li>
+                    {% empty %}
+                        <li class="text-muted">No activity yet.</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

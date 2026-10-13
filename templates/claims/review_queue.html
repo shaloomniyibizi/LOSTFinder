@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+
+{% block title %}Claim Review Queue{% endblock %}
+
+{% block breadcrumbs %}
+    <li class="breadcrumb-item active" aria-current="page">Review queue</li>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+    <div>
+        <h1 class="h3">Claim Review Queue</h1>
+        <p class="text-muted mb-0">Verify ownership, approve or reject claims, and record handovers.</p>
+    </div>
+    <div class="btn-group flex-wrap" role="group" aria-label="Filter by status">
+        {% for value, label in status_filters %}
+            <a href="?status={{ value }}"
+               class="btn btn-sm {% if selected_status == value %}btn-primary{% else %}btn-outline-primary{% endif %}">
+                {{ label }}
+            </a>
+        {% endfor %}
+    </div>
+</div>
+
+{% include "claims/_messages.html" %}
+
+<form method="get" class="d-flex gap-2 mb-3">
+    <input type="hidden" name="status" value="{{ selected_status }}">
+    <input class="form-control" name="q" value="{{ query }}"
+           placeholder="Search by item title or claimant email">
+    <button class="btn btn-outline-primary" type="submit">Search</button>
+</form>
+
+<div class="card shadow-sm">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>#</th>
+                    <th>Item</th>
+                    <th>Claimant</th>
+                    <th>Submitted</th>
+                    <th>Status</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for claim in claims %}
+                    <tr>
+                        <td>{{ claim.pk }}</td>
+                        <td>
+                            {{ claim.found_item.title }}
+                            <small class="text-muted d-block">{{ claim.found_item.location }}</small>
+                        </td>
+                        <td>{{ claim.claimant.email }}</td>
+                        <td>{{ claim.submitted_at|date:"M j, H:i" }}</td>
+                        <td>{% include "claims/_status_badge.html" with status=claim.status label=claim.get_status_display %}</td>
+                        <td class="text-end">
+                            <a class="btn btn-sm btn-outline-primary"
+                               href="{% url 'claim_detail' claim.pk %}">Open</a>
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="6" class="text-center text-muted py-4">No claims in this view.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% if page_obj.paginator.num_pages > 1 %}
+<nav class="mt-4" aria-label="Claim pages">
+    <ul class="pagination justify-content-center">
+        {% if page_obj.has_previous %}
+            <li class="page-item">
+                <a class="page-link" href="?status={{ selected_status }}&q={{ query|urlencode }}&page={{ page_obj.previous_page_number }}">Previous</a>
+            </li>
+        {% endif %}
+        <li class="page-item disabled">
+            <span class="page-link">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+        </li>
+        {% if page_obj.has_next %}
+            <li class="page-item">
+                <a class="page-link" href="?status={{ selected_status }}&q={{ query|urlencode }}&page={{ page_obj.next_page_number }}">Next</a>
+            </li>
+        {% endif %}
+    </ul>
+</nav>
+{% endif %}
+{% endblock %}

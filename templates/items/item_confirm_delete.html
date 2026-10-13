@@ -1,0 +1,46 @@
+
+{% extends "base.html" %}
+
+{% block title %}Delete {{ item_type }} Report{% endblock %}
+
+{% block breadcrumbs %}
+    <li class="breadcrumb-item"><a href="{% url list_url_name %}">{{ item_type }} items</a></li>
+    <li class="breadcrumb-item active" aria-current="page">Delete report</li>
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-7">
+        <div class="card shadow-sm border-danger">
+            <div class="card-body p-4">
+                <h1 class="h4 text-danger">Delete this report?</h1>
+
+                <p>
+                    You are about to delete the {{ item_type|lower }} report
+                    <strong>{{ item.title }}</strong>.
+                </p>
+
+                <p class="text-muted">
+                    This action cannot be undone. Related database records
+                    may prevent deletion.
+                </p>
+
+                {% for message in messages %}
+                    <div class="alert alert-{{ message.tags|default:'info' }}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+
+                <form method="post">
+                    {% csrf_token %}
+                    <button class="btn btn-danger" type="submit">
+                        Confirm delete
+                    </button>
+                    <a class="btn btn-outline-secondary"
+                       href="{% url list_url_name %}">Cancel</a>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

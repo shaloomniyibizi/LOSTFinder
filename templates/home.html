@@ -1,0 +1,326 @@
+{% extends "base_public.html" %}
+{% load static %}
+
+{% block title %}Campus Lost &amp; Found{% endblock %}
+
+{% block content %}
+{# ---------- Hero ---------- #}
+<div class="row g-4 align-items-stretch mb-4">
+    <div class="col-lg-6">
+        <div class="card h-100 border-0 shadow-sm">
+            <div class="card-body p-4 p-xl-5 d-flex flex-column justify-content-center">
+                <span class="badge text-bg-light border align-self-start mb-3">
+                    <i class="bi bi-patch-check-fill text-primary"></i>
+                    Official Centralized Recovery Portal &middot; Campus Security
+                </span>
+                <h1 class="display-6 fw-bold mb-3">
+                    Lost It on Campus?<br>Let's Bring It Back Home.
+                </h1>
+                <p class="text-secondary mb-4">
+                    The centralized recovery network for students, faculty, and staff.
+                    Connecting missing valuables across lecture halls, the library,
+                    the cafeteria, and labs with the campus security team.
+                </p>
+                <div class="d-flex flex-wrap gap-2">
+                    <a class="btn btn-warning" href="{% url 'lost_item_create' %}">
+                        <i class="bi bi-search"></i> Report Missing Item
+                    </a>
+                    <a class="btn btn-primary" href="{% url 'found_item_create' %}">
+                        <i class="bi bi-box-seam"></i> Turn In a Found Item
+                    </a>
+                    <a class="btn btn-outline-secondary" href="{% url 'found_item_list' %}">
+                        <i class="bi bi-shield-lock"></i> Items in Custody
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-6">
+        <div class="card h-100 border-0 shadow-sm overflow-hidden text-bg-dark lf-hero-card">
+            <img src="{% static 'image/hero_image.jpg' %}" class="card-img h-100"
+                 alt="Students walking through the main campus atrium">
+            <div class="card-img-overlay d-flex flex-column justify-content-between">
+                <span class="badge text-bg-light align-self-start">
+                    <span class="lf-live-dot"></span> Live recovery active
+                </span>
+                <div class="lf-hero-caption rounded p-3">
+                    <strong class="d-block">Campus Safe Hub</strong>
+                    <small>
+                        {{ active_found }} found item{{ active_found|pluralize }} currently
+                        waiting for {{ active_found|pluralize:"its owner,their owners" }}
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{# ---------- Search ---------- #}
+<div class="card card-outline card-primary shadow-sm mb-4">
+    <div class="card-body">
+        <form method="get" action="{% url 'found_item_list' %}" role="search">
+            <div class="input-group">
+                <span class="input-group-text"><i class="bi bi-search"></i></span>
+                <input type="search" name="q" class="form-control"
+                       placeholder="Search by item keyword: e.g. MacBook Air, Student ID, water bottle, keys..."
+                       aria-label="Search found items">
+                <button class="btn btn-primary" type="submit">Search</button>
+            </div>
+        </form>
+
+        {% if zones %}
+            <div class="d-flex flex-wrap align-items-center gap-2 mt-3">
+                <span class="small text-secondary fw-semibold text-uppercase me-1">
+                    <i class="bi bi-geo-alt"></i> Zone
+                </span>
+                <a class="badge rounded-pill text-bg-primary text-decoration-none" href="{% url 'found_item_list' %}">All</a>
+                {% for zone in zones %}
+                    <a class="badge rounded-pill text-bg-light border text-decoration-none"
+                       href="{% url 'found_item_list' %}?q={{ zone.name|urlencode }}">{{ zone.name }}</a>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        {% if categories %}
+            <div class="d-flex flex-wrap align-items-center gap-2 mt-2">
+                <span class="small text-secondary fw-semibold text-uppercase me-1">
+                    <i class="bi bi-tags"></i> Category
+                </span>
+                {% for category in categories %}
+                    <a class="badge rounded-pill text-bg-light border text-decoration-none"
+                       href="{% url 'found_item_list' %}?category={{ category.pk }}">{{ category.name }}</a>
+                {% endfor %}
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+{# ---------- Stats ---------- #}
+<div class="row">
+    <div class="col-md-6 col-xl-3">
+        <div class="info-box">
+            <span class="info-box-icon text-bg-primary shadow-sm"><i class="bi bi-inboxes"></i></span>
+            <div class="info-box-content">
+                <span class="info-box-text">Items recovered</span>
+                <span class="info-box-number">{{ stats.recovered }} <small class="fw-normal text-secondary">of {{ stats.total_reports }} reports</small></span>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6 col-xl-3">
+        <div class="info-box">
+            <span class="info-box-icon text-bg-warning shadow-sm"><i class="bi bi-clock-history"></i></span>
+            <div class="info-box-content">
+                <span class="info-box-text">Average claim-to-handover</span>
+                <span class="info-box-number">
+                    {% if stats.avg_claim_hours is not None %}{{ stats.avg_claim_hours }} hours{% else %}&ndash;{% endif %}
+                </span>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6 col-xl-3">
+        <div class="info-box">
+            <span class="info-box-icon text-bg-success shadow-sm"><i class="bi bi-shield-check"></i></span>
+            <div class="info-box-content">
+                <span class="info-box-text">Found items in custody</span>
+                <span class="info-box-number">{{ stats.in_custody }}</span>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6 col-xl-3">
+        <div class="info-box">
+            <span class="info-box-icon text-bg-info shadow-sm"><i class="bi bi-arrow-repeat"></i></span>
+            <div class="info-box-content">
+                <span class="info-box-text">Lost-report return rate</span>
+                <span class="info-box-number">
+                    {% if stats.return_rate is not None %}{{ stats.return_rate }}%{% else %}&ndash;{% endif %}
+                </span>
+            </div>
+        </div>
+    </div>
+</div>
+
+{# ---------- Live feed ---------- #}
+<div class="card shadow-sm mb-4" id="feed">
+    <div class="card-header d-flex flex-wrap align-items-center gap-2">
+        <h2 class="card-title h5 mb-0 me-auto">
+            <span class="lf-live-dot"></span> Recent Reports Across Campus
+        </h2>
+        <ul class="nav nav-pills nav-sm flex-wrap" role="tablist">
+            {% for value, label in feed_filters %}
+                <li class="nav-item">
+                    <a class="nav-link py-1 px-3 {% if feed == value %}active{% endif %}"
+                       href="?feed={{ value }}#feed"
+                       {% if feed == value %}aria-current="page"{% endif %}>{{ label }}</a>
+                </li>
+            {% endfor %}
+        </ul>
+    </div>
+
+    <div class="card-body">
+        {% if reports %}
+            <div class="row g-4">
+                {% for report in reports %}
+                    {% with item=report.item %}
+                    <div class="col-md-6 col-lg-4">
+                        <div class="card h-100 shadow-sm lf-report-card">
+                            <div class="position-relative">
+                                <img src="{{ report.image_url }}" class="card-img-top lf-report-img"
+                                     alt="{{ item.title }}" loading="lazy">
+                                {% if report.kind == "lost" %}
+                                    <span class="badge text-bg-danger position-absolute top-0 start-0 m-2">
+                                        <i class="bi bi-exclamation-circle"></i> Missing item
+                                    </span>
+                                {% else %}
+                                    <span class="badge text-bg-primary position-absolute top-0 start-0 m-2">
+                                        <i class="bi bi-check-circle"></i> Found item
+                                    </span>
+                                {% endif %}
+                                <span class="badge position-absolute top-0 end-0 m-2
+                                    {% if item.status == 'available' or item.status == 'returned' %}text-bg-success
+                                    {% elif item.status == 'open' %}text-bg-light
+                                    {% else %}text-bg-warning{% endif %}">{{ item.get_status_display }}</span>
+                            </div>
+
+                            <div class="card-body d-flex flex-column">
+                                <div class="d-flex justify-content-between small text-secondary mb-1">
+                                    <span><i class="bi bi-clock"></i> {{ item.created_at|timesince }} ago</span>
+                                    <span>Log #LF-{{ item.pk|stringformat:"04d" }}</span>
+                                </div>
+                                <h3 class="h6 fw-bold mb-1">{{ item.title }}</h3>
+                                <p class="small text-secondary mb-3">{{ item.description|truncatechars:110 }}</p>
+
+                                <div class="d-flex justify-content-between align-items-center small mt-auto mb-3 gap-2">
+                                    <span class="badge text-bg-light border text-truncate">
+                                        <i class="bi bi-geo-alt-fill"></i> {{ item.location|truncatechars:28 }}
+                                    </span>
+                                    <span class="text-secondary">{{ item.category.name }}</span>
+                                </div>
+
+                                {% if report.kind == "lost" %}
+                                    <a class="btn btn-outline-warning btn-sm w-100"
+                                       href="{% url report.detail_url_name item.pk %}">
+                                        <i class="bi bi-hand-index"></i> I Found This Item
+                                    </a>
+                                {% else %}
+                                    <a class="btn btn-primary btn-sm w-100"
+                                       href="{% url report.detail_url_name item.pk %}">
+                                        <i class="bi bi-shield-check"></i> Initiate Claim Verification
+                                    </a>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endwith %}
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="text-center text-secondary py-5">
+                <i class="bi bi-inbox fs-1 d-block mb-2"></i>
+                <p class="mb-3">No reports here yet. Be the first to help someone get their belongings back.</p>
+                <a class="btn btn-primary" href="{% url 'found_item_create' %}">Turn In a Found Item</a>
+            </div>
+        {% endif %}
+    </div>
+
+    {% if reports %}
+        <div class="card-footer text-center">
+            <a class="btn btn-outline-secondary btn-sm px-4"
+               href="{% if feed == 'lost' %}{% url 'lost_item_list' %}{% else %}{% url 'found_item_list' %}{% endif %}">
+                Load More Campus Reports <i class="bi bi-chevron-down"></i>
+            </a>
+        </div>
+    {% endif %}
+</div>
+
+{# ---------- Zones ---------- #}
+<section class="mb-4" id="zones">
+    <div class="text-center mb-3">
+        <h2 class="h4 fw-bold mb-1">Explore by Campus Zones</h2>
+        <p class="text-secondary mb-0">The locations with the most lost and found reports on campus.</p>
+    </div>
+
+    {% if zones %}
+        <div class="row">
+            {% for zone in zones %}
+                <div class="col-md-4">
+                    <div class="small-box {% cycle 'text-bg-primary' 'text-bg-info' 'text-bg-success' %}">
+                        <div class="inner">
+                            <h3>{{ zone.count }}</h3>
+                            <p class="mb-0">{{ zone.name }}</p>
+                            <small class="opacity-75">report{{ zone.count|pluralize }} in this zone</small>
+                        </div>
+                        <i class="small-box-icon bi {% cycle 'bi-building' 'bi-book' 'bi-cup-hot' %}" aria-hidden="true"></i>
+                        <a href="{% url 'found_item_list' %}?q={{ zone.name|urlencode }}"
+                           class="small-box-footer link-light link-underline-opacity-0 link-underline-opacity-50-hover">
+                            Filter zone <i class="bi bi-arrow-right-circle"></i>
+                        </a>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="card card-body text-center text-secondary">
+            <i class="bi bi-geo fs-2"></i>
+            Zones will appear here once items have been reported.
+        </div>
+    {% endif %}
+</section>
+
+{# ---------- How it works ---------- #}
+<section class="mb-4" id="how">
+    <div class="text-center mb-3">
+        <span class="badge text-bg-warning text-uppercase mb-2">Safe &amp; verified</span>
+        <h2 class="h4 fw-bold mb-1">How LOSTFinder Works</h2>
+        <p class="text-secondary mb-0">Designed to prevent false claims and protect personal items through official university protocol.</p>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-md-4">
+            <div class="callout callout-primary h-100 bg-body shadow-sm">
+                <h3 class="h6 fw-bold"><span class="badge text-bg-primary me-1">1</span> Post Instant Notice</h3>
+                <p class="small text-secondary">Upload a description, the approximate campus location and date, and an optional photo of the item you lost or found.</p>
+                <small class="text-secondary"><i class="bi bi-eye-slash"></i> Contact details are never shown publicly</small>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="callout callout-warning h-100 bg-body shadow-sm">
+                <h3 class="h6 fw-bold"><span class="badge text-bg-warning me-1">2</span> Automated Match &amp; Alert</h3>
+                <p class="small text-secondary">Our matching engine compares category, keywords, location, and dates between lost and found reports and scores each possible match.</p>
+                <small class="text-secondary"><i class="bi bi-envelope-check"></i> Matches are reviewed before contact</small>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="callout callout-success h-100 bg-body shadow-sm">
+                <h3 class="h6 fw-bold"><span class="badge text-bg-success me-1">3</span> Safe Retrieval</h3>
+                <p class="small text-secondary">Submit a claim with proof of ownership. Once security approves it, collect your item in person and sign the handover record.</p>
+                <small class="text-secondary"><i class="bi bi-person-vcard"></i> Physical ID check required</small>
+            </div>
+        </div>
+    </div>
+</section>
+
+{# ---------- Protocol banner ---------- #}
+<div class="card text-bg-dark shadow-sm lf-protocol">
+    <div class="card-body p-4 p-lg-5">
+        <div class="row g-4 align-items-center">
+            <div class="col-lg-8">
+                <span class="badge text-bg-warning mb-3">
+                    <i class="bi bi-shield-fill-check"></i> Official Protocol &middot; Campus Security Office
+                </span>
+                <h2 class="h3 fw-bold">High-Value Valuables Daily Escort Protocol</h2>
+                <p class="mb-0 opacity-75">
+                    In accordance with university safety bylaws, all high-value electronics
+                    (laptops, tablets, smartphones), jewelry, and passports found across campus
+                    are gathered by cleaning and security staff and escorted to the
+                    <strong>Campus Security Office</strong> safe at the end of each day.
+                </p>
+            </div>
+            <div class="col-lg-4 d-grid gap-2">
+                <a class="btn btn-warning" href="{% url 'found_item_create' %}">Turn In a Valuable</a>
+                <a class="btn btn-outline-light" href="#how">Read Handover Guidelines</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

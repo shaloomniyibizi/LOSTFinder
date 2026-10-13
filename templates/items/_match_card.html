@@ -1,0 +1,90 @@
+{% comment %}
+Usage: {% include "items/_match_card.html" with suggestion=s can_decide=True %}
+can_decide: the viewer owns the lost item and may accept or reject.
+{% endcomment %}
+<div class="card shadow-sm h-100">
+    <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <span class="badge
+                {% if suggestion.score >= 70 %}bg-success
+                {% elif suggestion.score >= 50 %}bg-primary
+                {% else %}bg-secondary{% endif %} fs-6">
+                {{ suggestion.score }}% match
+            </span>
+            <span class="badge
+                {% if suggestion.status == 'accepted' %}bg-success
+                {% elif suggestion.status == 'rejected' %}bg-danger
+                {% else %}bg-warning text-dark{% endif %}">
+                {{ suggestion.get_status_display }}
+            </span>
+        </div>
+
+        <div class="progress mb-3" style="height: 6px;"
+             role="progressbar" aria-label="Match score"
+             aria-valuenow="{{ suggestion.score }}" aria-valuemin="0" aria-valuemax="100">
+            <div class="progress-bar" style="width: {{ suggestion.score }}%"></div>
+        </div>
+
+        <div class="row g-2 mb-3">
+            <div class="col-6">
+                <div class="border rounded p-2 h-100">
+                    <small class="text-danger fw-semibold text-uppercase">Lost</small>
+                    <div class="fw-semibold">
+                        <a href="{% url 'lost_item_detail' suggestion.lost_item.pk %}">{{ suggestion.lost_item.title }}</a>
+                    </div>
+                    <small class="text-muted d-block">{{ suggestion.lost_item.category.name }}</small>
+                    <small class="text-muted d-block">{{ suggestion.lost_item.location }}</small>
+                    <small class="text-muted d-block">{{ suggestion.lost_item.date_lost }}</small>
+                </div>
+            </div>
+            <div class="col-6">
+                <div class="border rounded p-2 h-100">
+                    <small class="text-success fw-semibold text-uppercase">Found</small>
+                    <div class="fw-semibold">
+                        <a href="{% url 'found_item_detail' suggestion.found_item.pk %}">{{ suggestion.found_item.title }}</a>
+                    </div>
+                    <small class="text-muted d-block">{{ suggestion.found_item.category.name }}</small>
+                    <small class="text-muted d-block">{{ suggestion.found_item.location }}</small>
+                    <small class="text-muted d-block">{{ suggestion.found_item.date_found }}</small>
+                </div>
+            </div>
+        </div>
+
+        <p class="small text-muted mb-3">
+            <strong>Why:</strong> {{ suggestion.reason }}
+        </p>
+
+        {% if can_decide %}
+            <form method="post" action="{% url 'match_update' suggestion.pk %}"
+                  class="d-flex flex-wrap gap-2">
+                {% csrf_token %}
+                <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                {% if suggestion.status != 'accepted' %}
+                    <button class="btn btn-success btn-sm" name="action" value="accept">
+                        This is my item
+                    </button>
+                {% endif %}
+                {% if suggestion.status != 'rejected' %}
+                    <button class="btn btn-outline-danger btn-sm" name="action" value="reject">
+                        Not mine
+                    </button>
+                {% endif %}
+                {% if suggestion.status != 'pending' %}
+                    <button class="btn btn-outline-secondary btn-sm" name="action" value="reset">
+                        Undo
+                    </button>
+                {% endif %}
+                {% if suggestion.status == 'accepted' %}
+                    <a class="btn btn-primary btn-sm ms-auto"
+                       href="{% url 'found_item_detail' suggestion.found_item.pk %}">
+                        Claim this item
+                    </a>
+                {% endif %}
+            </form>
+        {% else %}
+            <p class="small mb-0 text-muted">
+                The owner of the lost report will review this match.
+            </p>
+        {% endif %}
+    </div>
+</div>

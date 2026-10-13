@@ -1,0 +1,82 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    {% include "layouts/_theme_init.html" %}
+    <title>{% block title %}LOSTFinder{% endblock %} | LOSTFinder</title>
+    {# adminlte.min.css bundles Bootstrap 5.3 #}
+    <link href="{% static 'vendor/adminlte/css/adminlte.min.css' %}" rel="stylesheet">
+    <link href="{% static 'vendor/bootstrap-icons/bootstrap-icons.min.css' %}" rel="stylesheet">
+    <link href="{% static 'css/app.css' %}" rel="stylesheet">
+    {% block extra_head %}{% endblock %}
+</head>
+<body class="layout-fixed bg-body-tertiary lf-guest">
+{# Same AdminLTE shell as the signed-in app, without the sidebar. #}
+<div class="app-wrapper">
+    <nav class="app-header navbar navbar-expand-lg bg-body">
+        <div class="container-lg">
+            <a href="{% url 'home' %}" class="navbar-brand d-flex align-items-center gap-2">
+                <span class="lf-brand-mark">LF</span>
+                <span class="fw-semibold">LOSTFinder</span>
+            </a>
+
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse"
+                    data-bs-target="#guestNav" aria-controls="guestNav"
+                    aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+
+            <div class="collapse navbar-collapse" id="guestNav">
+                <ul class="navbar-nav me-auto">
+                    {% block guest_nav %}
+                        <li class="nav-item"><a class="nav-link" href="{% url 'home' %}#feed">Live feed</a></li>
+                        <li class="nav-item"><a class="nav-link" href="{% url 'home' %}#zones">Campus zones</a></li>
+                        <li class="nav-item"><a class="nav-link" href="{% url 'home' %}#how">How it works</a></li>
+                    {% endblock %}
+                </ul>
+                <div class="d-flex align-items-center gap-2 py-2 py-lg-0">
+                    <ul class="navbar-nav">
+                        {% include "layouts/_theme_toggle.html" %}
+                    </ul>
+                    {% if request.user.is_authenticated %}
+                        <form method="post" action="{% url 'logout' %}" class="m-0">
+                            {% csrf_token %}
+                            <button class="btn btn-outline-secondary btn-sm" type="submit">
+                                <i class="bi bi-box-arrow-right"></i> Log out
+                            </button>
+                        </form>
+                    {% else %}
+                        <a class="btn btn-link text-decoration-none" href="{% url 'login' %}">Sign in</a>
+                        <a class="btn btn-primary btn-sm" href="{% url 'register' %}">
+                            <i class="bi bi-person-plus"></i> Register
+                        </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="app-main">
+        {% block content_header %}{% endblock %}
+        <div class="app-content">
+            <div class="container-lg py-4">
+                {% block content %}{% endblock %}
+            </div>
+        </div>
+    </main>
+
+    <footer class="app-footer small">
+        <div class="container-lg d-flex flex-wrap justify-content-between gap-2">
+            <span><strong>&copy; {% now "Y" %} LOSTFinder</strong> &middot; University Lost &amp; Found</span>
+            <span class="text-secondary">Campus Security Office</span>
+        </div>
+    </footer>
+</div>
+
+<script src="{% static 'vendor/bootstrap/js/bootstrap.bundle.min.js' %}"></script>
+<script src="{% static 'vendor/adminlte/js/adminlte.min.js' %}"></script>
+{% block extra_js %}{% endblock %}
+</body>
+</html>

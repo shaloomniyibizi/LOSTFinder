@@ -1,0 +1,118 @@
+{% with current=request.resolver_match.url_name %}
+<aside class="app-sidebar bg-body-secondary shadow" data-bs-theme="dark">
+    <div class="sidebar-brand">
+        <a href="{% url 'dashboard' %}" class="brand-link">
+            <span class="brand-image lf-brand-mark">LF</span>
+            <span class="brand-text fw-semibold">LOSTFinder</span>
+        </a>
+    </div>
+
+    <div class="sidebar-wrapper">
+        <nav class="mt-2" aria-label="Main navigation">
+            <ul class="nav sidebar-menu flex-column" data-lte-toggle="treeview" role="navigation" data-accordion="false">
+                <li class="nav-item">
+                    <a href="{% url 'dashboard' %}" class="nav-link {% if current == 'dashboard' %}active{% endif %}">
+                        <i class="nav-icon bi bi-speedometer2"></i>
+                        <p>Dashboard</p>
+                    </a>
+                </li>
+
+                <li class="nav-header">REPORTS</li>
+                <li class="nav-item">
+                    <a href="{% url 'lost_item_list' %}" class="nav-link {% if current == 'lost_item_list' or current == 'lost_item_detail' or current == 'lost_item_update' %}active{% endif %}">
+                        <i class="nav-icon bi bi-search"></i>
+                        <p>Lost items</p>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="{% url 'found_item_list' %}" class="nav-link {% if current == 'found_item_list' or current == 'found_item_detail' or current == 'found_item_update' %}active{% endif %}">
+                        <i class="nav-icon bi bi-box-seam"></i>
+                        <p>Found items</p>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="{% url 'lost_item_create' %}" class="nav-link {% if current == 'lost_item_create' %}active{% endif %}">
+                        <i class="nav-icon bi bi-plus-circle"></i>
+                        <p>Report lost item</p>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="{% url 'found_item_create' %}" class="nav-link {% if current == 'found_item_create' %}active{% endif %}">
+                        <i class="nav-icon bi bi-plus-square"></i>
+                        <p>Turn in found item</p>
+                    </a>
+                </li>
+
+                <li class="nav-header">RECOVERY</li>
+                <li class="nav-item">
+                    <a href="{% url 'match_list' %}" class="nav-link {% if current == 'match_list' %}active{% endif %}">
+                        <i class="nav-icon bi bi-link-45deg"></i>
+                        <p>
+                            My matches
+                            {% if pending_match_count %}<span class="nav-badge badge text-bg-warning me-3">{{ pending_match_count }}</span>{% endif %}
+                        </p>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="{% url 'claim_list' %}" class="nav-link {% if current == 'claim_list' or current == 'claim_create' %}active{% endif %}">
+                        <i class="nav-icon bi bi-clipboard-check"></i>
+                        <p>My claims</p>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="{% url 'notification_list' %}" class="nav-link {% if current == 'notification_list' %}active{% endif %}">
+                        <i class="nav-icon bi bi-bell"></i>
+                        <p>
+                            Notifications
+                            {% if unread_notifications %}<span class="nav-badge badge text-bg-info me-3">{{ unread_notifications }}</span>{% endif %}
+                        </p>
+                    </a>
+                </li>
+
+                {% if user_is_reviewer %}
+                    <li class="nav-header">SECURITY DESK</li>
+                    <li class="nav-item">
+                        <a href="{% url 'review_queue' %}" class="nav-link {% if current == 'review_queue' and request.GET.status != 'approved' or current == 'claim_detail' or current == 'claim_handover' %}active{% endif %}">
+                            <i class="nav-icon bi bi-shield-check"></i>
+                            <p>
+                                Review queue
+                                {% if review_count %}<span class="nav-badge badge text-bg-danger me-3">{{ review_count }}</span>{% endif %}
+                            </p>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="{% url 'review_queue' %}?status=approved" class="nav-link {% if current == 'review_queue' and request.GET.status == 'approved' %}active{% endif %}">
+                            <i class="nav-icon bi bi-box-arrow-in-right"></i>
+                            <p>Awaiting handover</p>
+                        </a>
+                    </li>
+                {% endif %}
+
+                {% if request.user.is_staff %}
+                    <li class="nav-header">ADMINISTRATION</li>
+                    <li class="nav-item">
+                        <a href="{% url 'admin:index' %}" class="nav-link">
+                            <i class="nav-icon bi bi-gear"></i>
+                            <p>Django admin</p>
+                        </a>
+                    </li>
+                {% endif %}
+
+                <li class="nav-header">ACCOUNT</li>
+                <li class="nav-item">
+                    <a href="{% url 'profile' %}" class="nav-link {% if current == 'profile' %}active{% endif %}">
+                        <i class="nav-icon bi bi-person"></i>
+                        <p>My profile</p>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="{% url 'home' %}" class="nav-link">
+                        <i class="nav-icon bi bi-globe"></i>
+                        <p>Public site</p>
+                    </a>
+                </li>
+            </ul>
+        </nav>
+    </div>
+</aside>
+{% endwith %}

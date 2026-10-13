@@ -1,0 +1,206 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block page_title %}
+    {% if dash.role == "reviewer" %}Security Desk Dashboard{% else %}My Dashboard{% endif %}
+{% endblock %}
+
+{% block breadcrumbs %}
+    <li class="breadcrumb-item active" aria-current="page">Overview</li>
+{% endblock %}
+
+{% block content %}
+{% include "claims/_messages.html" %}
+
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+    <p class="mb-0 text-secondary">
+        {% if dash.role == "reviewer" %}
+            Claims, custody and returns across campus.
+        {% else %}
+            Welcome back, {{ request.user.username }}. Here is where your items stand.
+        {% endif %}
+    </p>
+    <span class="lf-updated" aria-live="polite">
+        <i class="bi bi-arrow-clockwise"></i>
+        Live &middot; updated <span id="lf-updated">{{ metrics.generated_at }}</span>
+    </span>
+</div>
+
+{# ---------- Summary cards ---------- #}
+<div class="row">
+    {% for card in dash.cards %}
+        <div class="col-lg-3 col-6">
+            <div class="small-box text-bg-{{ card.color }}" data-card="{{ card.key }}">
+                <div class="inner">
+                    <h3 data-metric="{{ card.key }}">{{ card.value }}</h3>
+                    <p class="mb-0">{{ card.label }}</p>
+                    <small class="opacity-75 d-none d-md-block">{{ card.hint }}</small>
+                </div>
+                <i class="small-box-icon bi {{ card.icon }}" aria-hidden="true"></i>
+                <a href="{{ card.url }}"
+                   class="small-box-footer link-light link-underline-opacity-0 link-underline-opacity-50-hover">
+                    Open <i class="bi bi-arrow-right-circle"></i>
+                </a>
+            </div>
+        </div>
+    {% endfor %}
+</div>
+
+{# ---------- Secondary stats ---------- #}
+<div class="row">
+    {% for stat in dash.stats %}
+        <div class="col-md-6 col-xl">
+            <a href="{{ stat.url }}" class="text-reset text-decoration-none">
+                <div class="info-box">
+                    <span class="info-box-icon text-bg-{{ stat.color }} shadow-sm">
+                        <i class="bi {{ stat.icon }}" aria-hidden="true"></i>
+                    </span>
+                    <div class="info-box-content">
+                        <span class="info-box-text">{{ stat.label }}</span>
+                        <span class="info-box-number" data-metric="{{ stat.key }}">{{ stat.value }}</span>
+                    </div>
+                </div>
+            </a>
+        </div>
+    {% endfor %}
+</div>
+
+{# ---------- Charts ---------- #}
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h3 class="card-title">Campus reports &middot; last 14 days</h3>
+            </div>
+            <div class="card-body">
+                <div class="lf-chart">
+                    <canvas id="chart-activity" role="img"
+                            aria-label="Line chart of lost and found reports per day over the last 14 days"></canvas>
+                </div>
+                <details class="mt-2 small">
+                    <summary>Show data table</summary>
+                    <div class="table-responsive mt-2" data-table-for="activity"></div>
+                </details>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h3 class="card-title" id="chart-status-title">{{ dash.charts.status.title }}</h3>
+            </div>
+            <div class="card-body">
+                <div class="lf-chart">
+                    <canvas id="chart-status" role="img"
+                            aria-label="Bar chart: {{ dash.charts.status.title }}"></canvas>
+                </div>
+                <details class="mt-2 small">
+                    <summary>Show data table</summary>
+                    <div class="table-responsive mt-2" data-table-for="status"></div>
+                </details>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-4">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h3 class="card-title">Reports by category</h3>
+            </div>
+            <div class="card-body">
+                <div class="lf-chart lf-chart-sm">
+                    <canvas id="chart-categories" role="img"
+                            aria-label="Bar chart of lost and found reports per category"></canvas>
+                </div>
+                <p class="text-secondary small mb-0 d-none" data-empty-for="categories">
+                    No reports yet.
+                </p>
+                <details class="mt-2 small">
+                    <summary>Show data table</summary>
+                    <div class="table-responsive mt-2" data-table-for="categories"></div>
+                </details>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-8">
+        {% if dash.role == "reviewer" %}
+            {% include "dashboard/_claim_queue.html" with claims=dash.tables.claim_queue %}
+        {% else %}
+            {% include "dashboard/_pending_matches.html" with suggestions=dash.tables.pending_matches %}
+        {% endif %}
+    </div>
+</div>
+
+{# ---------- Role tables ---------- #}
+<div class="row">
+    {% if dash.role == "reviewer" %}
+        <div class="col-lg-4">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h3 class="card-title">Awaiting handover</h3>
+                    <div class="card-tools">
+                        <a href="{% url 'review_queue' %}?status=approved" class="btn btn-tool">View all</a>
+                    </div>
+                </div>
+                <ul class="list-group list-group-flush">
+                    {% for claim in dash.tables.awaiting_handover %}
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            <span>
+                                <a href="{% url 'claim_detail' claim.pk %}">{{ claim.found_item.title }}</a>
+                                <small class="text-secondary d-block">{{ claim.claimant.email }} &middot; approved {{ claim.updated_at|timesince }} ago</small>
+                            </span>
+                            <a class="btn btn-sm btn-success" href="{% url 'claim_handover' claim.pk %}">Hand over</a>
+                        </li>
+                    {% empty %}
+                        <li class="list-group-item text-secondary">No approved claims waiting.</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+        <div class="col-lg-8">
+            {% include "dashboard/_reports_table.html" with rows=dash.tables.recent_reports title="Recent reports" show_reporter=True %}
+        </div>
+    {% else %}
+        <div class="col-lg-5">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h3 class="card-title">My claims</h3>
+                    <div class="card-tools">
+                        <a href="{% url 'claim_list' %}" class="btn btn-tool">View all</a>
+                    </div>
+                </div>
+                <ul class="list-group list-group-flush">
+                    {% for claim in dash.tables.my_claims %}
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            <a href="{% url 'claim_detail' claim.pk %}">{{ claim.found_item.title }}</a>
+                            {% include "claims/_status_badge.html" with status=claim.status label=claim.get_status_display %}
+                        </li>
+                    {% empty %}
+                        <li class="list-group-item text-secondary">
+                            No claims yet. <a href="{% url 'found_item_list' %}">Browse found items</a>
+                        </li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+        <div class="col-lg-7">
+            {% include "dashboard/_reports_table.html" with rows=dash.tables.my_reports title="My recent reports" show_reporter=False %}
+        </div>
+    {% endif %}
+</div>
+
+{{ metrics|json_script:"dashboard-metrics" }}
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'vendor/chartjs/chart.umd.min.js' %}"></script>
+<script src="{% static 'js/dashboard.js' %}"
+        data-metrics-url="{% url 'dashboard_metrics' %}"
+        data-refresh-seconds="30"></script>
+{% endblock %}

@@ -1,0 +1,92 @@
+
+{% extends "base.html" %}
+
+{% block title %}{{ item.title }} | Item Details{% endblock %}
+
+{% block breadcrumbs %}
+    <li class="breadcrumb-item"><a href="{% url list_url_name %}">{{ item_type }} items</a></li>
+    <li class="breadcrumb-item active" aria-current="page">{{ item.title|truncatechars:30 }}</li>
+{% endblock %}
+
+{% block content %}
+{% for message in messages %}
+    <div class="alert alert-{{ message.tags|default:'info' }}">
+        {{ message }}
+    </div>
+{% endfor %}
+
+<div class="card shadow-sm">
+    {% if item.image %}
+        <img src="{{ item.image.url }}"
+             alt="{{ item.title }}"
+             class="card-img-top"
+             style="max-height: 420px; object-fit: contain;">
+    {% endif %}
+
+    <div class="card-body p-4">
+        <span class="badge bg-secondary">{{ item.get_status_display }}</span>
+        <h1 class="h3 mt-2">{{ item.title }}</h1>
+
+        <p><strong>Report type:</strong> {{ item_type }}</p>
+        <p><strong>Category:</strong> {{ item.category.name }}</p>
+        <p><strong>Description:</strong><br>{{ item.description|linebreaksbr }}</p>
+        <p><strong>Location:</strong> {{ item.location }}</p>
+        <p><strong>Report date:</strong> {{ report_date }}</p>
+        <p><strong>Reported by:</strong> {{ item.reporter.email }}</p>
+        <p><strong>Submitted:</strong> {{ item.created_at }}</p>
+
+        <div class="d-flex flex-wrap gap-2 mt-4">
+            <a class="btn btn-outline-secondary"
+               href="{% url list_url_name %}">Back to reports</a>
+
+            {% if can_claim %}
+                <a class="btn btn-success"
+                   href="{% url 'claim_create' pk %}">Claim this item</a>
+            {% endif %}
+            {% if my_claim and my_claim.status != "cancelled" %}
+                <a class="btn btn-outline-success"
+                   href="{% url 'claim_detail' my_claim.pk %}">
+                    My claim: {{ my_claim.get_status_display }}
+                </a>
+            {% endif %}
+            {% if can_manage and claim_count %}
+                <a class="btn btn-outline-primary" href="{% url 'claim_list' %}">
+                    {{ claim_count }} claim{{ claim_count|pluralize }} on this item
+                </a>
+            {% endif %}
+
+            {% if can_manage %}
+                <a class="btn btn-primary"
+                   href="{% url update_url_name pk %}">Edit report</a>
+                <a class="btn btn-outline-danger"
+                   href="{% url delete_url_name pk %}">Delete report</a>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+{% if can_manage %}
+    <div class="d-flex justify-content-between align-items-center mt-5 mb-3">
+        <h2 class="h5 mb-0">Possible matches</h2>
+        <a class="btn btn-sm btn-outline-primary" href="{% url 'match_list' %}">All my matches</a>
+    </div>
+    <div class="row g-3">
+        {% for suggestion in suggestions %}
+            <div class="col-md-6">
+                {% if item_type == "Lost" %}
+                    {% include "items/_match_card.html" with suggestion=suggestion can_decide=True %}
+                {% else %}
+                    {% include "items/_match_card.html" with suggestion=suggestion can_decide=False %}
+                {% endif %}
+            </div>
+        {% empty %}
+            <div class="col-12">
+                <div class="alert alert-light border mb-0">
+                    No possible matches yet. We check again whenever a new
+                    {% if item_type == "Lost" %}found{% else %}lost{% endif %} item is reported.
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+{% endif %}
+{% endblock %}

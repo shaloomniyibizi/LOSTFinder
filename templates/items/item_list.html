@@ -1,0 +1,146 @@
+
+{% extends "base.html" %}
+
+{% block title %}{{ item_type }} Items{% endblock %}
+
+{% block breadcrumbs %}
+    <li class="breadcrumb-item active" aria-current="page">{{ item_type }} items</li>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1 class="h3">{{ item_type }} Item Reports</h1>
+        <p class="text-muted mb-0">Search and manage campus property reports.</p>
+    </div>
+    <a class="btn btn-primary" href="{% url create_url_name %}">
+        + Report {{ item_type }} Item
+    </a>
+</div>
+
+{% for message in messages %}
+    <div class="alert alert-{{ message.tags|default:'info' }}">
+        {{ message }}
+    </div>
+{% endfor %}
+
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-3">
+            <div class="col-md-5">
+                <label class="form-label" for="q">Search</label>
+                <input class="form-control" id="q" name="q"
+                       value="{{ query }}"
+                       placeholder="Title, description or location">
+            </div>
+
+            <div class="col-md-3">
+                <label class="form-label" for="category">Category</label>
+                <select class="form-select" id="category" name="category">
+                    <option value="">All categories</option>
+                    {% for category in categories %}
+                        <option value="{{ category.pk }}"
+                            {% if selected_category == category.pk|stringformat:"s" %}selected{% endif %}>
+                            {{ category.name }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="col-md-2">
+                <label class="form-label" for="status">Status</label>
+                <select class="form-select" id="status" name="status">
+                    <option value="">All statuses</option>
+                    {% for value, label in status_choices %}
+                        <option value="{{ value }}"
+                            {% if selected_status == value %}selected{% endif %}>
+                            {{ label }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="col-md-2 d-flex align-items-end gap-2">
+                <button class="btn btn-primary" type="submit">Search</button>
+                {% if query or selected_category or selected_status %}
+                    {% if item_type == "Lost" %}
+                        <a class="btn btn-outline-secondary"
+                           href="{% url 'lost_item_list' %}">Reset</a>
+                    {% else %}
+                        <a class="btn btn-outline-secondary"
+                           href="{% url 'found_item_list' %}">Reset</a>
+                    {% endif %}
+                {% endif %}
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="row g-3">
+    {% for item in items %}
+        <div class="col-md-6 col-xl-4">
+            <div class="card h-100 shadow-sm">
+                {% if item.image %}
+                    <img src="{{ item.image.url }}"
+                         class="card-img-top"
+                         alt="{{ item.title }}"
+                         style="height: 200px; object-fit: cover;">
+                {% endif %}
+
+                <div class="card-body">
+                    <span class="badge bg-secondary">{{ item.get_status_display }}</span>
+                    <h2 class="h5 mt-2">{{ item.title }}</h2>
+                    <p class="text-muted mb-1">{{ item.category.name }}</p>
+                    <p class="mb-1"><strong>Location:</strong> {{ item.location }}</p>
+
+                    {% if item_type == "Lost" %}
+                        <p><strong>Date lost:</strong> {{ item.date_lost }}</p>
+                        <a href="{% url 'lost_item_detail' item.pk %}"
+                           class="btn btn-outline-primary">View details</a>
+                    {% else %}
+                        <p><strong>Date found:</strong> {{ item.date_found }}</p>
+                        <a href="{% url 'found_item_detail' item.pk %}"
+                           class="btn btn-outline-primary">View details</a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    {% empty %}
+        <div class="col-12">
+            <div class="alert alert-info">
+                No {{ item_type|lower }} item reports match your search.
+            </div>
+        </div>
+    {% endfor %}
+</div>
+
+{% if page_obj.paginator.num_pages > 1 %}
+<nav class="mt-4" aria-label="Item report pages">
+    <ul class="pagination justify-content-center">
+        {% if page_obj.has_previous %}
+            <li class="page-item">
+                <a class="page-link"
+                   href="?q={{ query|urlencode }}&category={{ selected_category }}&status={{ selected_status }}&page={{ page_obj.previous_page_number }}">
+                    Previous
+                </a>
+            </li>
+        {% endif %}
+
+        <li class="page-item disabled">
+            <span class="page-link">
+                Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+            </span>
+        </li>
+
+        {% if page_obj.has_next %}
+            <li class="page-item">
+                <a class="page-link"
+                   href="?q={{ query|urlencode }}&category={{ selected_category }}&status={{ selected_status }}&page={{ page_obj.next_page_number }}">
+                    Next
+                </a>
+            </li>
+        {% endif %}
+    </ul>
+</nav>
+{% endif %}
+{% endblock %}

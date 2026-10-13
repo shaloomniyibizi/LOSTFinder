@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+
+{% block title %}Claim {{ found_item.title }}{% endblock %}
+
+{% block breadcrumbs %}
+    <li class="breadcrumb-item"><a href="{% url 'found_item_list' %}">Found items</a></li>
+    <li class="breadcrumb-item active" aria-current="page">New claim</li>
+{% endblock %}
+
+{% block content %}
+{% include "claims/_messages.html" %}
+
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card shadow-sm">
+            <div class="card-body p-4">
+                <h1 class="h3">Claim “{{ found_item.title }}”</h1>
+                <p class="text-muted">
+                    Found at {{ found_item.location }} on {{ found_item.date_found }}.
+                    Campus security will compare your description with the item
+                    before approving the claim.
+                </p>
+
+                <div class="alert alert-light border small">
+                    <strong>Tip:</strong> mention details that are not in the public
+                    report. Your evidence is only visible to you and the security team.
+                </div>
+
+                <form method="post" novalidate>
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label class="form-label" for="{{ form.evidence_description.id_for_label }}">
+                            Proof of ownership
+                        </label>
+                        {{ form.evidence_description }}
+                        <div class="form-text">{{ form.evidence_description.help_text }}</div>
+                        {% for error in form.evidence_description.errors %}
+                            <div class="text-danger small">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-primary" type="submit">Submit claim</button>
+                        <a class="btn btn-outline-secondary"
+                           href="{% url 'found_item_detail' found_item.pk %}">Cancel</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

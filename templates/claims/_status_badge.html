@@ -1,0 +1,7 @@
+<span class="badge
+    {% if status == 'approved' %}bg-success
+    {% elif status == 'completed' %}bg-primary
+    {% elif status == 'rejected' %}bg-danger
+    {% elif status == 'cancelled' %}bg-secondary
+    {% elif status == 'under_review' %}bg-info text-dark
+    {% else %}bg-warning text-dark{% endif %}">{{ label }}</span>

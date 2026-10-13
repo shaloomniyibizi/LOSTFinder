@@ -1,0 +1,55 @@
+# ---------- Secrets & local config ----------
+# Holds SECRET_KEY and database credentials; never commit it.
+.env
+.env.*
+!.env.example
+
+# ---------- Python ----------
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+build/
+dist/
+
+# Virtual environments (uv creates .venv)
+.venv/
+venv/
+env/
+
+# ---------- Django ----------
+# Local development database (production uses PostgreSQL via .env)
+db.sqlite3
+db.sqlite3-journal
+*.sqlite3
+
+# User uploads: profile photos, lost/found item images
+media/
+
+# Output of `manage.py collectstatic`
+staticfiles/
+
+*.log
+
+# ---------- Tests & tooling ----------
+.coverage
+.coverage.*
+htmlcov/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.tox/
+
+# ---------- Editors & OS ----------
+.vscode/
+.idea/
+*.swp
+*~
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Note: static/vendor/ (AdminLTE, Bootstrap, Chart.js, Bootstrap Icons) is
+# committed on purpose so the app works without a CDN. uv.lock and
+# requirements.txt are committed for reproducible installs.

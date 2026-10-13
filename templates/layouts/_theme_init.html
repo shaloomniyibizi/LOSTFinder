@@ -1,0 +1,19 @@
+{% comment %} Apply the saved colour mode before first paint (no light/dark flash).
+   Uses AdminLTE's own storage key; data-lte-theme-resolved tells AdminLTE
+   this attribute came from the saved choice, not from the markup. {% endcomment %}
+<script>
+    (function () {
+        var theme = "auto";
+        try {
+            var stored = localStorage.getItem("lte-theme");
+            if (stored === "light" || stored === "dark" || stored === "auto") theme = stored;
+        } catch (e) {}
+        if (theme === "auto") {
+            theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+        }
+        var root = document.documentElement;
+        root.setAttribute("data-bs-theme", theme);
+        root.setAttribute("data-lte-theme-resolved", "");
+        root.style.colorScheme = theme;
+    })();
+</script>
