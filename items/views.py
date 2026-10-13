@@ -3,7 +3,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db.models.deletion import ProtectedError
 from django.core.paginator import Paginator
-from django.db.models import Q
+from django.db.models import Count, Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
@@ -11,6 +11,7 @@ from django.views.decorators.http import require_POST
 from accounts.decorators import profile_completed_required
 from claims.models import Claim
 from claims.services import can_claim
+from .cards import report_card
 from .forms import LostItemForm, FoundItemForm
 from .matching import (
     match_found_item,
@@ -20,10 +21,14 @@ from .matching import (
 from .models import ItemCategory, LostItem, FoundItem, MatchSuggestion
 
 
+PAGE_SIZE = 12   # four rows of three cards
+
+
 def item_list(request, model, item_type, date_field, create_url_name):
     query = request.GET.get("q", "").strip()
     category_id = request.GET.get("category", "").strip()
     status = request.GET.get("status", "").strip()
+    kind = "lost" if model is LostItem else "found"
 
     queryset = model.objects.select_related(
         "category", "reporter"
@@ -36,8 +41,20 @@ def item_list(request, model, item_type, date_field, create_url_name):
             | Q(location__icontains=query)
         )
 
+    categories = ItemCategory.objects.filter(is_active=True)
+    selected_category = None
     if category_id.isdigit():
         queryset = queryset.filter(category_id=int(category_id))
+        selected_category = categories.filter(pk=int(category_id)).first()
+
+    # Counts for the status tabs reflect the search and category filters.
+    status_counts = dict(
+        queryset.order_by().values_list("status").annotate(total=Count("id"))
+    )
+    status_tabs = [("", "All", sum(status_counts.values()))] + [
+        (value, label, status_counts.get(value, 0))
+        for value, label in model.Status.choices
+    ]
 
     valid_statuses = {value for value, _ in model.Status.choices}
     if status in valid_statuses:
@@ -45,18 +62,24 @@ def item_list(request, model, item_type, date_field, create_url_name):
     else:
         status = ""
 
-    paginator = Paginator(queryset, 10)
+    paginator = Paginator(queryset, PAGE_SIZE)
     page_obj = paginator.get_page(request.GET.get("page"))
 
     context = {
         "item_type": item_type,
+        "kind": kind,
         "items": page_obj.object_list,
+        "cards": [report_card(item, kind) for item in page_obj.object_list],
         "page_obj": page_obj,
         "query": query,
         "selected_category": category_id,
+        "selected_category_obj": selected_category,
         "selected_status": status,
-        "categories": ItemCategory.objects.filter(is_active=True),
+        "selected_status_label": dict(model.Status.choices).get(status, ""),
+        "categories": categories,
         "status_choices": model.Status.choices,
+        "status_tabs": status_tabs,
+        "total_reports": model.objects.count(),
         "date_field": date_field,
         "create_url_name": create_url_name,
     }

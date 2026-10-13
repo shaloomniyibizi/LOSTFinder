@@ -4,16 +4,14 @@ from django.contrib.auth.decorators import login_required
 from django.db.models import Avg, Count, F
 from django.http import JsonResponse
 from django.shortcuts import redirect, render
-from django.templatetags.static import static
 
 from claims.models import Claim, ItemHandover
 from accounts.decorators import profile_completed_required
+from items.cards import report_card
 from items.models import FoundItem, ItemCategory, LostItem
 
 from .metrics import build_dashboard, serialize_metrics
 
-
-FALLBACK_IMAGES = [f"image/item_{n}.jpg" for n in range(1, 7)]
 
 FEED_FILTERS = [
     ("all", "All Reports"),
@@ -23,26 +21,6 @@ FEED_FILTERS = [
 ]
 
 FEED_SIZE = 6
-
-
-def _feed_entry(item, kind, index):
-    """Flatten a lost or found report into what the home page cards need."""
-    is_lost = kind == "lost"
-
-    if item.image:
-        image_url = item.image.url
-    else:
-        image_url = static(FALLBACK_IMAGES[index % len(FALLBACK_IMAGES)])
-
-    return {
-        "item": item,
-        "kind": kind,
-        "image_url": image_url,
-        "report_date": item.date_lost if is_lost else item.date_found,
-        "detail_url_name": (
-            "lost_item_detail" if is_lost else "found_item_detail"
-        ),
-    }
 
 
 def _recent_reports(feed):
@@ -66,10 +44,7 @@ def _recent_reports(feed):
         reverse=True,
     )[:FEED_SIZE]
 
-    return [
-        _feed_entry(item, kind, index)
-        for index, (item, kind) in enumerate(reports)
-    ]
+    return [report_card(item, kind) for item, kind in reports]
 
 
 def _campus_stats():

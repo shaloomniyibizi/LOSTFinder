@@ -216,3 +216,90 @@
     outline: 2px solid var(--bs-primary);
     outline-offset: 2px;
 }
+
+/* ---------- Lost / found report form ---------- */
+
+.lf-form-hero { color: #fff; }
+.lf-form-hero-lost { background: linear-gradient(135deg, #8a3b0a, #c4650f); }
+.lf-form-hero-found { background: linear-gradient(135deg, #0f1d3a, #1f5fbf); }
+
+.lf-form-hero-icon {
+    flex-shrink: 0;
+    display: grid;
+    place-items: center;
+    width: 3.25rem;
+    height: 3.25rem;
+    border-radius: 14px;
+    background: rgba(255, 255, 255, .16);
+    font-size: 1.5rem;
+}
+
+.lf-dropzone-area {
+    display: grid;
+    place-items: center;
+    min-height: 190px;
+    border: 2px dashed var(--bs-border-color);
+    border-radius: var(--bs-border-radius-lg);
+    background: var(--bs-tertiary-bg);
+    cursor: pointer;
+    overflow: hidden;
+    transition: border-color .15s, background-color .15s;
+}
+
+.lf-dropzone-area:hover,
+.lf-dropzone-area.is-dragging {
+    border-color: var(--bs-primary);
+    background: rgba(var(--bs-primary-rgb), .06);
+}
+
+.lf-dropzone input[type="file"]:focus-visible + .lf-dropzone-area {
+    outline: 2px solid var(--bs-primary);
+    outline-offset: 2px;
+}
+
+.lf-dropzone-area img {
+    max-height: 260px;
+    width: 100%;
+    object-fit: contain;
+}
+
+.lf-dropzone-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: .25rem;
+    padding: 1.5rem;
+    text-align: center;
+    color: var(--bs-secondary-color);
+}
+
+.lf-dropzone-empty .bi { font-size: 2.25rem; color: var(--bs-primary); }
+
+.lf-dropzone.lf-field-invalid .lf-dropzone-area { border-color: var(--bs-form-invalid-border-color); }
+
+.lf-next-steps { padding-left: 1.1rem; }
+.lf-next-steps li { margin-bottom: .5rem; }
+.lf-next-steps li::marker { color: var(--bs-primary); font-weight: 700; }
+
+/* ---------- Lost / found lists ---------- */
+
+.lf-status-tabs { gap: .25rem; padding-bottom: .15rem; }
+.lf-status-tabs .nav-link { padding: .35rem .85rem; font-size: .875rem; }
+
+.lf-filter-chip { font-weight: 500; padding: .45em .8em; }
+.lf-filter-chip:hover { border-color: var(--bs-primary) !important; }
+
+.lf-empty-icon {
+    display: inline-grid;
+    place-items: center;
+    width: 4rem;
+    height: 4rem;
+    border-radius: 50%;
+    background: rgba(var(--bs-primary-rgb), .1);
+    color: var(--bs-primary);
+    font-size: 1.75rem;
+}
+
+.lf-report-card .lf-report-img { transition: transform .3s; }
+.lf-report-card a:hover .lf-report-img { transform: scale(1.03); }
+.lf-report-card > a { overflow: hidden; }

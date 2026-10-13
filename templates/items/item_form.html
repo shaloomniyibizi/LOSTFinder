@@ -1,8 +1,8 @@
-
 {% extends "base.html" %}
+{% load static %}
 
 {% block title %}
-    {% if is_edit %}Edit{% else %}Report{% endif %} {{ item_type }} Item
+    {% if is_edit %}Edit{% elif item_type == "Lost" %}Report lost{% else %}Turn in found{% endif %} item
 {% endblock %}
 
 {% block breadcrumbs %}
@@ -11,54 +11,173 @@
 {% endblock %}
 
 {% block content %}
-<div class="row justify-content-center">
+{% include "claims/_messages.html" %}
+
+<div class="row g-4">
     <div class="col-lg-8">
-        <div class="card shadow-sm">
-            <div class="card-body p-4">
-                <h1 class="h3 mb-3">
-                    {% if is_edit %}Edit{% else %}Report a{% endif %}
-                    {{ item_type }} Item
-                </h1>
-
-                {% for message in messages %}
-                    <div class="alert alert-{{ message.tags|default:'info' }}">
-                        {{ message }}
-                    </div>
-                {% endfor %}
-
-                <form method="post" enctype="multipart/form-data">
-                    {% csrf_token %}
-                    {{ form.non_field_errors }}
-
-                    {% for field in form %}
-                        <div class="mb-3">
-                            <label class="form-label"
-                                   for="{{ field.id_for_label }}">
-                                {{ field.label }}
-                            </label>
-
-                            {{ field }}
-
-                            {% if field.name == "image" %}
-                                <div class="form-text">
-                                    Optional image; maximum upload size is 5 MB.
-                                </div>
+        <div class="card shadow-sm border-0 overflow-hidden">
+            <div class="lf-form-hero {% if item_type == 'Lost' %}lf-form-hero-lost{% else %}lf-form-hero-found{% endif %} p-4">
+                <div class="d-flex align-items-center gap-3">
+                    <span class="lf-form-hero-icon">
+                        <i class="bi {% if item_type == 'Lost' %}bi-search{% else %}bi-box-seam{% endif %}" aria-hidden="true"></i>
+                    </span>
+                    <div>
+                        <h1 class="h4 fw-bold mb-1">
+                            {% if is_edit %}Edit your {{ item_type|lower }} report
+                            {% elif item_type == "Lost" %}Report a lost item
+                            {% else %}Turn in a found item{% endif %}
+                        </h1>
+                        <p class="mb-0 opacity-75">
+                            {% if item_type == "Lost" %}
+                                Describe what you lost. We'll compare it with every item handed in and tell you about likely matches.
+                            {% else %}
+                                Thank you for helping! Describe what you found so its owner can recognise it.
                             {% endif %}
+                        </p>
+                    </div>
+                </div>
+            </div>
 
-                            {% for error in field.errors %}
-                                <div class="text-danger small">{{ error }}</div>
-                            {% endfor %}
-                        </div>
+            <div class="card-body p-4">
+                <form method="post" enctype="multipart/form-data" novalidate>
+                    {% csrf_token %}
+                    {% for error in form.non_field_errors %}
+                        <div class="alert alert-danger"><i class="bi bi-exclamation-triangle-fill me-1"></i>{{ error }}</div>
                     {% endfor %}
 
-                    <button class="btn btn-primary" type="submit">
-                        {% if is_edit %}Save changes{% else %}Submit report{% endif %}
-                    </button>
-                    <a class="btn btn-outline-secondary"
-                       href="{% url list_url_name %}">Cancel</a>
+                    {# ---------- What ---------- #}
+                    <section class="lf-form-section">
+                        <h2 class="lf-section-heading"><i class="bi bi-tag"></i> The item</h2>
+                        <div class="row g-3">
+                            <div class="col-md-7">
+                                {% include "accounts/_icon_field.html" with field=form.title icon="bi-type" %}
+                            </div>
+                            <div class="col-md-5">
+                                {% include "accounts/_icon_field.html" with field=form.category icon="bi-grid" %}
+                            </div>
+                            <div class="col-12">
+                                {% include "accounts/_icon_field.html" with field=form.description icon="bi-card-text" %}
+                                <div class="form-text text-end" data-char-count-for="{{ form.description.id_for_label }}" aria-live="polite"></div>
+                            </div>
+                        </div>
+                    </section>
+
+                    {# ---------- Where & when ---------- #}
+                    <section class="lf-form-section">
+                        <h2 class="lf-section-heading"><i class="bi bi-pin-map"></i> Where &amp; when</h2>
+                        <div class="row g-3">
+                            <div class="col-md-7">
+                                {% include "accounts/_icon_field.html" with field=form.location icon="bi-geo-alt" %}
+                            </div>
+                            <div class="col-md-5">
+                                {% if item_type == "Lost" %}
+                                    {% include "accounts/_icon_field.html" with field=form.date_lost icon="bi-calendar-event" %}
+                                {% else %}
+                                    {% include "accounts/_icon_field.html" with field=form.date_found icon="bi-calendar-event" %}
+                                {% endif %}
+                            </div>
+                        </div>
+                    </section>
+
+                    {# ---------- Photo ---------- #}
+                    <section class="lf-form-section">
+                        <h2 class="lf-section-heading"><i class="bi bi-camera"></i> Photo <span class="text-lowercase fw-normal">(optional)</span></h2>
+                        <div class="lf-dropzone{% if form.image.errors %} lf-field-invalid{% endif %}" data-dropzone>
+                            <input type="file" name="{{ form.image.html_name }}" id="{{ form.image.id_for_label }}"
+                                   accept="image/*" class="visually-hidden" data-dropzone-input>
+                            <label for="{{ form.image.id_for_label }}" class="lf-dropzone-area" data-dropzone-area>
+                                <img data-dropzone-preview alt="Photo preview"
+                                     {% if form.instance.image %}src="{{ form.instance.image.url }}"{% else %}hidden{% endif %}>
+                                <span class="lf-dropzone-empty" data-dropzone-empty {% if form.instance.image %}hidden{% endif %}>
+                                    <i class="bi bi-cloud-arrow-up" aria-hidden="true"></i>
+                                    <span><strong>Click to upload</strong> or drag a photo here</span>
+                                    <small>JPG, PNG or WebP &middot; up to 5 MB</small>
+                                </span>
+                            </label>
+                            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mt-2">
+                                <span class="small text-secondary" data-dropzone-name>
+                                    {% if form.instance.image %}Current photo{% endif %}
+                                </span>
+                                {% if form.instance.image %}
+                                    <div class="form-check mb-0">
+                                        <input class="form-check-input" type="checkbox"
+                                               name="{{ form.image.html_name }}-clear" id="{{ form.image.id_for_label }}-clear">
+                                        <label class="form-check-label small" for="{{ form.image.id_for_label }}-clear">Remove current photo</label>
+                                    </div>
+                                {% endif %}
+                            </div>
+                            <div class="invalid-feedback d-block" data-dropzone-error>
+                                {% for error in form.image.errors %}<i class="bi bi-exclamation-circle me-1"></i>{{ error }}{% endfor %}
+                            </div>
+                        </div>
+                    </section>
+
+                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+                        <span class="small text-secondary"><span class="text-danger">*</span> Required</span>
+                        <div class="d-flex gap-2">
+                            <a class="btn btn-outline-secondary" href="{% url list_url_name %}">Cancel</a>
+                            <button class="btn {% if item_type == 'Lost' %}btn-warning{% else %}btn-primary{% endif %} px-4" type="submit">
+                                {% if is_edit %}
+                                    <i class="bi bi-check2"></i> Save changes
+                                {% elif item_type == "Lost" %}
+                                    <i class="bi bi-send"></i> Submit lost report
+                                {% else %}
+                                    <i class="bi bi-send"></i> Submit found item
+                                {% endif %}
+                            </button>
+                        </div>
+                    </div>
                 </form>
             </div>
         </div>
     </div>
+
+    {# ---------- Tips ---------- #}
+    <div class="col-lg-4">
+        <div class="card shadow-sm mb-4">
+            <div class="card-header">
+                <h2 class="card-title h6 mb-0"><i class="bi bi-lightbulb text-warning me-1"></i> Tips for a good report</h2>
+            </div>
+            <ul class="list-group list-group-flush small">
+                {% if item_type == "Lost" %}
+                    <li class="list-group-item"><i class="bi bi-check2-circle text-success me-2"></i>Name the brand, colour and size.</li>
+                    <li class="list-group-item"><i class="bi bi-check2-circle text-success me-2"></i>Mention stickers, scratches, cases or keyrings.</li>
+                    <li class="list-group-item"><i class="bi bi-check2-circle text-success me-2"></i>Add a photo of the item, or a similar one, if you have it.</li>
+                    <li class="list-group-item"><i class="bi bi-shield-lock text-primary me-2"></i><strong>Keep one secret detail</strong> (serial number, lock screen, contents) to prove ownership when you claim.</li>
+                {% else %}
+                    <li class="list-group-item"><i class="bi bi-check2-circle text-success me-2"></i>Describe what it looks like, not who it belongs to.</li>
+                    <li class="list-group-item"><i class="bi bi-check2-circle text-success me-2"></i>Note exactly where you found it.</li>
+                    <li class="list-group-item"><i class="bi bi-eye-slash text-danger me-2"></i>Don't post ID numbers, card numbers or serials; the owner proves those when claiming.</li>
+                    <li class="list-group-item"><i class="bi bi-shield-check text-primary me-2"></i><strong>Laptops, phones, IDs and jewellery:</strong> take them to the Campus Security Office.</li>
+                {% endif %}
+            </ul>
+        </div>
+
+        <div class="card shadow-sm">
+            <div class="card-header">
+                <h2 class="card-title h6 mb-0"><i class="bi bi-signpost-split text-primary me-1"></i> What happens next</h2>
+            </div>
+            <div class="card-body small">
+                <ol class="lf-next-steps mb-0">
+                    {% if item_type == "Lost" %}
+                        <li>We match your report against every found item, now and as new ones arrive.</li>
+                        <li>Review suggestions in <a href="{% url 'match_list' %}">My matches</a>.</li>
+                        <li>Claim the item with your secret detail; security verifies it.</li>
+                        <li>Collect it at the Campus Security Office with your ID.</li>
+                    {% else %}
+                        <li>We match it against open lost reports straight away.</li>
+                        <li>Owners claim it with proof only they would know.</li>
+                        <li>Security verifies the claim and hands the item over.</li>
+                        <li>You can follow progress in <a href="{% url 'claim_list' %}">My claims</a>.</li>
+                    {% endif %}
+                </ol>
+            </div>
+        </div>
+    </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/profile-form.js' %}"></script>
+<script src="{% static 'js/item-form.js' %}"></script>
 {% endblock %}
