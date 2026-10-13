@@ -162,6 +162,37 @@ uv run manage.py runserver
 
 Open <http://127.0.0.1:8000/>.
 
+### 7. Load demo data (optional)
+
+To try the app straight away, seed it with sample data:
+
+```bash
+python manage.py seed_demo
+```
+
+This creates:
+
+- **8 item categories:** Electronics, ID Cards, Keys, Water Bottles, Apparel, Textbooks, Bags, Other. With these, the "add categories" setup step below is already done.
+- **6 found items with photos and 6 lost reports**, spread over the last 10 days so the dashboard charts have data.
+- **Match suggestions** produced by the real matching engine.
+- **Claims at every stage:** one completed (handed over), one approved and awaiting handover, one waiting in the review queue. One match is left pending, so you can accept or reject it yourself.
+- **Four demo accounts**, all with the password `Demo-Pass-2026!` and onboarding already complete:
+
+| Email | Role | What to try |
+| --- | --- | --- |
+| `amina@lostfinder.test` | Student | Review the pending AirPods match; follow the approved MacBook claim |
+| `daniel@lostfinder.test` | Student | See a returned item and a claim in review |
+| `grace@lostfinder.test` | University staff | See claims on the items she turned in |
+| `officer@lostfinder.test` | Security officer | Review the keys claim; record the MacBook handover |
+
+Options:
+
+- `--reset` removes the demo data first, then re-creates it.
+- `--reset --no-create` only removes it. Categories are kept.
+- `--password <pw>` sets a different password for the demo accounts.
+
+Running the command again without `--reset` does nothing, so it is safe to repeat. It only touches accounts ending in `@lostfinder.test` and their reports. Because the demo accounts share a known password, the command refuses to run when `DEBUG=False` unless you add `--force`. Don't use it on a public server.
+
 ## First-time setup
 
 Do these steps once, signed in to the Django admin at <http://127.0.0.1:8000/admin/> with your superuser.
@@ -294,6 +325,7 @@ All settings come from `.env` (see `.env.example`):
 | `python manage.py runserver` | Start the development server |
 | `python manage.py migrate` | Create or update the database tables |
 | `python manage.py createsuperuser` | Create an administrator account |
+| `python manage.py seed_demo` | Load demo users, 6 lost and 6 found items, matches and claims ([details](#7-load-demo-data-optional)). Add `--reset` to re-create the data. |
 | `python manage.py run_matching` | Recalculate match suggestions for every open lost report. Run it after importing data, or after editing reports in the Django admin (admin edits do not trigger matching). |
 | `python manage.py test` | Run the test suite |
 
@@ -303,7 +335,7 @@ All settings come from `.env` (see `.env.example`):
 python manage.py test
 ```
 
-79 tests cover:
+86 tests cover:
 
 - matching
 - the save hooks
@@ -313,6 +345,7 @@ python manage.py test
 - live metrics
 - the bundled static assets
 - the theme toggle
+- the demo seed command
 
 They create a temporary test database, so your data is not touched. With PostgreSQL, the database user needs permission to create databases.
 
@@ -329,7 +362,7 @@ djlint templates --reformat
 LOSTFinder/
 ├── accounts/        Registration, email login, onboarding, profiles, role checks (decorators.py)
 ├── items/           Lost/found reports, matching engine (matching.py), match pages
-│   └── management/commands/run_matching.py
+│   └── management/commands/   run_matching.py, seed_demo.py
 ├── claims/          Claims workflow (services.py), review queue, handovers, notifications
 ├── dashboard/       Public home page, role-based dashboard, metrics (metrics.py)
 ├── config/          Django settings and root URLs
