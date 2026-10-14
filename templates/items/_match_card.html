@@ -16,19 +16,21 @@ can_decide: the viewer owns the lost item and may accept or reject.
             </svg>
             <span>{{ suggestion.score }}<small>%</small></span>
         </div>
-        <div class="me-auto">
-            <div class="fw-bold">{% match_strength suggestion.score %}</div>
-            <small class="text-secondary">{{ suggestion.score }}% match &middot; suggested {{ suggestion.created_at|timesince }} ago</small>
+        <div class="me-auto min-w-0">
+            <div class="d-flex flex-wrap align-items-center gap-2">
+                <span class="fw-bold">{% match_strength suggestion.score %}</span>
+                <span class="badge rounded-pill
+                    {% if suggestion.status == 'accepted' %}text-bg-success
+                    {% elif suggestion.status == 'rejected' %}text-bg-danger
+                    {% else %}text-bg-warning{% endif %}">
+                    {% if suggestion.status == 'accepted' %}<i class="bi bi-check2"></i>
+                    {% elif suggestion.status == 'rejected' %}<i class="bi bi-x"></i>
+                    {% else %}<i class="bi bi-hourglass-split"></i>{% endif %}
+                    {{ suggestion.get_status_display }}
+                </span>
+            </div>
+            <small class="text-secondary"><span class="visually-hidden">{{ suggestion.score }}% match. </span>Suggested {{ suggestion.created_at|date:"M j, Y" }}</small>
         </div>
-        <span class="badge rounded-pill
-            {% if suggestion.status == 'accepted' %}text-bg-success
-            {% elif suggestion.status == 'rejected' %}text-bg-danger
-            {% else %}text-bg-warning{% endif %}">
-            {% if suggestion.status == 'accepted' %}<i class="bi bi-check2"></i>
-            {% elif suggestion.status == 'rejected' %}<i class="bi bi-x"></i>
-            {% else %}<i class="bi bi-hourglass-split"></i>{% endif %}
-            {{ suggestion.get_status_display }}
-        </span>
     </div>
 
     <div class="card-body">

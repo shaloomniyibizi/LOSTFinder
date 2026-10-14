@@ -385,8 +385,9 @@ html { scroll-padding-top: 4.5rem; }
 .lf-score-ring > span {
     position: absolute;
     inset: 0;
-    display: grid;
-    place-items: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     font-weight: 700;
     font-size: .85rem;
     font-variant-numeric: tabular-nums;
