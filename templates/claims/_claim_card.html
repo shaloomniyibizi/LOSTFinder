@@ -1,0 +1,46 @@
+{% load lostfinder %}
+{% comment %}
+One claim with photo, status and a progress tracker.
+Context: claim, show_claimant (finder's view hides who claimed it).
+{% endcomment %}
+{% with item=claim.found_item %}
+<div class="card shadow-sm lf-claim-card lf-claim-{{ claim.status }}">
+    <div class="card-body">
+        <div class="d-flex gap-3">
+            <a href="{% url 'claim_detail' claim.pk %}" class="flex-shrink-0" tabindex="-1" aria-hidden="true">
+                <img src="{{ item|item_image }}" alt="" class="lf-claim-thumb" loading="lazy"
+                     onerror="this.onerror=null;this.src='{{ item|item_placeholder }}'">
+            </a>
+            <div class="flex-grow-1 min-w-0">
+                <div class="d-flex flex-wrap align-items-start gap-2">
+                    <div class="me-auto min-w-0">
+                        <a href="{% url 'claim_detail' claim.pk %}" class="fw-bold text-reset text-decoration-none d-block text-truncate">{{ item.title }}</a>
+                        <small class="text-secondary">
+                            Claim #{{ claim.pk }} &middot; <i class="bi bi-geo-alt"></i> {{ item.location }}
+                            &middot; <i class="bi bi-clock"></i> {{ claim.submitted_at|timesince }} ago
+                        </small>
+                    </div>
+                    {% include "claims/_status_badge.html" with status=claim.status label=claim.get_status_display %}
+                </div>
+
+                <ol class="lf-steps-track mt-3 mb-0" aria-label="Claim progress">
+                    {% for step in claim|claim_steps %}
+                        <li class="is-{{ step.state }}"{% if step.state == "current" %} aria-current="step"{% endif %}>
+                            <span class="lf-step-dot">
+                                {% if step.state == "done" %}<i class="bi bi-check-lg"></i>
+                                {% elif step.state == "ended" %}<i class="bi bi-x-lg"></i>
+                                {% else %}<i class="bi {{ step.icon }}"></i>{% endif %}
+                            </span>
+                            <span class="lf-step-label">{% if step.state == "ended" %}{{ claim.get_status_display }}{% else %}{{ step.label }}{% endif %}</span>
+                        </li>
+                    {% endfor %}
+                </ol>
+            </div>
+        </div>
+    </div>
+    <a href="{% url 'claim_detail' claim.pk %}" class="card-footer bg-transparent small text-decoration-none d-flex">
+        <span>{% if claim.status == "approved" and not show_claimant %}Collection details{% else %}View claim{% endif %}</span>
+        <i class="bi bi-arrow-right ms-auto" aria-hidden="true"></i>
+    </a>
+</div>
+{% endwith %}

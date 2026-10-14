@@ -6,6 +6,7 @@ from django.db.models import Q
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
 
 from accounts.decorators import (
@@ -72,12 +73,26 @@ def claim_create(request, found_pk):
 @profile_completed_required
 def claim_list(request):
     claims = _claims_queryset().filter(claimant=request.user)
+    statuses = [claim.status for claim in claims]
 
     return render(request, "claims/claim_list.html", {
         "claims": claims,
         "claims_on_my_items": _claims_queryset().filter(
             found_item__reporter=request.user
         ),
+        "ready_to_collect": [
+            claim for claim in claims if claim.status == Claim.Status.APPROVED
+        ],
+        "summary": [
+            ("In progress", "bi-hourglass-split", "warning",
+             sum(s in services.ACTIVE_STATUSES for s in statuses)),
+            ("Ready to collect", "bi-bag-check", "success",
+             statuses.count(Claim.Status.APPROVED)),
+            ("Collected", "bi-box-arrow-in-right", "primary",
+             statuses.count(Claim.Status.COMPLETED)),
+            ("Closed", "bi-x-circle", "secondary",
+             statuses.count(Claim.Status.REJECTED) + statuses.count(Claim.Status.CANCELLED)),
+        ],
     })
 
 
@@ -252,15 +267,76 @@ def claim_handover(request, pk):
     })
 
 
+# Icon and colour per notification type (matched on the title the
+# claim services use), so the inbox can be scanned at a glance.
+NOTIFICATION_STYLES = [
+    ("approved", "bi-check2-circle", "success"),
+    ("rejected", "bi-x-circle", "danger"),
+    ("under review", "bi-hourglass-split", "info"),
+    ("returned", "bi-bag-check", "primary"),
+    ("claimed", "bi-hand-index", "warning"),
+    ("new claim", "bi-clipboard-plus", "warning"),
+]
+
+
+def _notification_style(notification):
+    title = notification.title.lower()
+    for keyword, icon, color in NOTIFICATION_STYLES:
+        if keyword in title:
+            return icon, color
+    return "bi-bell", "secondary"
+
+
+def _day_label(moment):
+    day = timezone.localtime(moment).date()
+    today = timezone.localdate()
+    if day == today:
+        return "Today"
+    if day == today - timezone.timedelta(days=1):
+        return "Yesterday"
+    return day.strftime("%A, %b %d").replace(" 0", " ")
+
+
 @login_required
 def notification_list(request):
+    show = request.GET.get("show", "all")
     notifications = request.user.notifications.all()
+    unread_total = notifications.filter(is_read=False).count()
+    if show == "unread":
+        notifications = notifications.filter(is_read=False)
+    else:
+        show = "all"
+
     page_obj = Paginator(notifications, 20).get_page(request.GET.get("page"))
+
+    groups = []
+    for notification in page_obj.object_list:
+        notification.icon, notification.color = _notification_style(notification)
+        label = _day_label(notification.created_at)
+        if not groups or groups[-1][0] != label:
+            groups.append((label, []))
+        groups[-1][1].append(notification)
 
     return render(request, "claims/notification_list.html", {
         "page_obj": page_obj,
         "notifications": page_obj.object_list,
+        "groups": groups,
+        "show": show,
+        "total_count": request.user.notifications.count(),
+        "unread_total": unread_total,
     })
+
+
+@require_POST
+@login_required
+def notification_mark_read(request, pk):
+    request.user.notifications.filter(pk=pk, is_read=False).update(
+        is_read=True, read_at=timezone.now()
+    )
+    next_url = request.POST.get("next", "")
+    if url_has_allowed_host_and_scheme(next_url, allowed_hosts={request.get_host()}):
+        return redirect(next_url)
+    return redirect("notification_list")
 
 
 @require_POST

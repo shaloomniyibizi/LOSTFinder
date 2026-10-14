@@ -346,6 +346,23 @@ def match_list(request):
     elif status != "all":
         suggestions = suggestions.filter(status=status)
 
+    # Counts for the filter pills, over every match involving this user.
+    mine = MatchSuggestion.objects.filter(
+        Q(lost_item__reporter=request.user) | Q(found_item__reporter=request.user)
+    )
+    by_status = dict(
+        mine.order_by().values_list("status").annotate(total=Count("id"))
+    )
+    rejected = by_status.get(MatchSuggestion.Status.REJECTED, 0)
+    total = sum(by_status.values())
+    counts = {
+        "active": total - rejected,
+        "pending": by_status.get(MatchSuggestion.Status.PENDING, 0),
+        "accepted": by_status.get(MatchSuggestion.Status.ACCEPTED, 0),
+        "rejected": rejected,
+        "all": total,
+    }
+
     return render(request, "items/match_list.html", {
         "for_my_lost": suggestions.filter(
             lost_item__reporter=request.user
@@ -355,6 +372,13 @@ def match_list(request):
         ),
         "selected_status": status,
         "status_filters": MATCH_FILTERS,
+        "filter_tabs": [
+            (value, label, counts[value]) for value, label in MATCH_FILTERS
+        ],
+        "awaiting_decision": MatchSuggestion.objects.filter(
+            lost_item__reporter=request.user,
+            status=MatchSuggestion.Status.PENDING,
+        ).count(),
     })
 
 

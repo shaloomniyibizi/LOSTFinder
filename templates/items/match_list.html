@@ -1,65 +1,90 @@
 {% extends "base.html" %}
 
-{% block title %}My Matches{% endblock %}
+{% block title %}My matches{% endblock %}
 
 {% block breadcrumbs %}
     <li class="breadcrumb-item active" aria-current="page">My matches</li>
 {% endblock %}
 
 {% block content %}
-<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
-    <div>
-        <h1 class="h3">Match Suggestions</h1>
-        <p class="text-muted mb-0">
-            Possible pairings between lost and found reports, scored on category,
-            title, description, location, and date.
-        </p>
+{% include "claims/_messages.html" %}
+
+{# ---------- Header + filters ---------- #}
+<div class="card shadow-sm border-0 overflow-hidden mb-4">
+    <div class="lf-form-hero lf-hero-matches p-4">
+        <div class="d-flex flex-wrap align-items-center gap-3">
+            <span class="lf-form-hero-icon"><i class="bi bi-link-45deg" aria-hidden="true"></i></span>
+            <div class="me-auto">
+                <h1 class="h4 fw-bold mb-1">My matches</h1>
+                <p class="mb-0 opacity-75">
+                    Possible pairings between lost and found reports, scored on category, title,
+                    description, location and date.
+                </p>
+            </div>
+            {% if awaiting_decision %}
+                <span class="badge rounded-pill text-bg-warning fs-6 px-3 py-2">
+                    <i class="bi bi-hourglass-split"></i> {{ awaiting_decision }} waiting for your decision
+                </span>
+            {% endif %}
+        </div>
     </div>
-    <div class="btn-group flex-wrap" role="group" aria-label="Filter by status">
-        {% for value, label in status_filters %}
-            <a href="?status={{ value }}"
-               class="btn btn-sm {% if selected_status == value %}btn-primary{% else %}btn-outline-primary{% endif %}">
-                {{ label }}
-            </a>
+    <div class="card-body py-3">
+        <ul class="nav nav-pills lf-status-tabs flex-nowrap overflow-auto" aria-label="Filter matches">
+            {% for value, label, count in filter_tabs %}
+                <li class="nav-item">
+                    <a class="nav-link text-nowrap {% if selected_status == value %}active{% endif %}"
+                       href="?status={{ value }}" {% if selected_status == value %}aria-current="page"{% endif %}>
+                        {{ label }}
+                        <span class="badge rounded-pill {% if selected_status == value %}text-bg-light{% else %}text-bg-secondary{% endif %} ms-1">{{ count }}</span>
+                    </a>
+                </li>
+            {% endfor %}
+        </ul>
+    </div>
+</div>
+
+{# ---------- For my lost items ---------- #}
+<section class="mb-5">
+    <div class="d-flex align-items-center gap-2 mb-3">
+        <h2 class="h5 fw-bold mb-0"><i class="bi bi-search text-warning me-1"></i> For my lost items</h2>
+        <span class="badge rounded-pill text-bg-secondary">{{ for_my_lost|length }}</span>
+    </div>
+    <div class="row g-4">
+        {% for suggestion in for_my_lost %}
+            <div class="col-lg-6 col-xxl-4">
+                {% include "items/_match_card.html" with suggestion=suggestion can_decide=True %}
+            </div>
+        {% empty %}
+            <div class="col-12">
+                <div class="card card-body text-center py-4">
+                    <span class="lf-empty-icon mx-auto mb-2"><i class="bi bi-search"></i></span>
+                    <p class="text-secondary mb-2">No matches for your lost reports in this view yet. We check again every time a found item is reported.</p>
+                    <div><a class="btn btn-sm btn-outline-primary" href="{% url 'lost_item_create' %}"><i class="bi bi-plus-lg"></i> Report a lost item</a></div>
+                </div>
+            </div>
         {% endfor %}
     </div>
-</div>
+</section>
 
-{% for message in messages %}
-    <div class="alert alert-{{ message.tags|default:'info' }}">
-        {{ message }}
+{# ---------- For items I found ---------- #}
+<section>
+    <div class="d-flex align-items-center gap-2 mb-3">
+        <h2 class="h5 fw-bold mb-0"><i class="bi bi-box-seam text-primary me-1"></i> For items I found</h2>
+        <span class="badge rounded-pill text-bg-secondary">{{ for_my_found|length }}</span>
     </div>
-{% endfor %}
-
-<h2 class="h5 mb-3">For my lost items</h2>
-<div class="row g-3 mb-5">
-    {% for suggestion in for_my_lost %}
-        <div class="col-md-6 col-xl-4">
-            {% include "items/_match_card.html" with suggestion=suggestion can_decide=True %}
-        </div>
-    {% empty %}
-        <div class="col-12">
-            <div class="alert alert-light border mb-0">
-                No matches for your lost reports yet. We check again every time a
-                found item is reported.
-                <a href="{% url 'lost_item_create' %}">Report a lost item</a>
+    <div class="row g-4">
+        {% for suggestion in for_my_found %}
+            <div class="col-lg-6 col-xxl-4">
+                {% include "items/_match_card.html" with suggestion=suggestion can_decide=False %}
             </div>
-        </div>
-    {% endfor %}
-</div>
-
-<h2 class="h5 mb-3">For items I found</h2>
-<div class="row g-3">
-    {% for suggestion in for_my_found %}
-        <div class="col-md-6 col-xl-4">
-            {% include "items/_match_card.html" with suggestion=suggestion can_decide=False %}
-        </div>
-    {% empty %}
-        <div class="col-12">
-            <div class="alert alert-light border mb-0">
-                None of the items you turned in have a possible owner yet.
+        {% empty %}
+            <div class="col-12">
+                <div class="card card-body text-center py-4">
+                    <span class="lf-empty-icon mx-auto mb-2"><i class="bi bi-box-seam"></i></span>
+                    <p class="text-secondary mb-0">None of the items you turned in have a possible owner in this view yet.</p>
+                </div>
             </div>
-        </div>
-    {% endfor %}
-</div>
+        {% endfor %}
+    </div>
+</section>
 {% endblock %}

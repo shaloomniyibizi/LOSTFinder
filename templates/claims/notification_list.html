@@ -7,43 +7,117 @@
 {% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h1 class="h3 mb-0">Notifications</h1>
-    {% if unread_notifications %}
-        <form method="post" action="{% url 'notifications_mark_read' %}" class="m-0">
-            {% csrf_token %}
-            <button class="btn btn-sm btn-outline-primary" type="submit">Mark all as read</button>
-        </form>
-    {% endif %}
-</div>
+{% include "claims/_messages.html" %}
 
-<div class="card shadow-sm">
-    <div class="list-group list-group-flush">
-        {% for notification in notifications %}
-            <div class="list-group-item {% if not notification.is_read %}bg-primary-subtle{% endif %}">
-                <div class="d-flex justify-content-between">
-                    <strong>{{ notification.title }}</strong>
-                    <small class="text-muted">{{ notification.created_at|timesince }} ago</small>
+<div class="row justify-content-center">
+    <div class="col-xl-9">
+        {# ---------- Header + filters ---------- #}
+        <div class="card shadow-sm border-0 overflow-hidden mb-4">
+            <div class="lf-form-hero lf-hero-notifications p-4">
+                <div class="d-flex flex-wrap align-items-center gap-3">
+                    <span class="lf-form-hero-icon"><i class="bi bi-bell" aria-hidden="true"></i></span>
+                    <div class="me-auto">
+                        <h1 class="h4 fw-bold mb-1">Notifications</h1>
+                        <p class="mb-0 opacity-75">
+                            {% if unread_total %}
+                                You have <strong>{{ unread_total }}</strong> unread notification{{ unread_total|pluralize }}.
+                            {% else %}
+                                You're all caught up.
+                            {% endif %}
+                        </p>
+                    </div>
+                    {% if unread_notifications %}
+                        <form method="post" action="{% url 'notifications_mark_read' %}" class="m-0">
+                            {% csrf_token %}
+                            <button class="btn btn-light btn-sm fw-semibold" type="submit">
+                                <i class="bi bi-check2-all"></i> Mark all as read
+                            </button>
+                        </form>
+                    {% endif %}
                 </div>
-                <div class="small">{{ notification.message }}</div>
+            </div>
+            <div class="card-body py-3">
+                <ul class="nav nav-pills lf-status-tabs" aria-label="Filter notifications">
+                    <li class="nav-item">
+                        <a class="nav-link {% if show == 'all' %}active{% endif %}" href="?show=all"
+                           {% if show == 'all' %}aria-current="page"{% endif %}>
+                            All <span class="badge rounded-pill {% if show == 'all' %}text-bg-light{% else %}text-bg-secondary{% endif %} ms-1">{{ total_count }}</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if show == 'unread' %}active{% endif %}" href="?show=unread"
+                           {% if show == 'unread' %}aria-current="page"{% endif %}>
+                            Unread <span class="badge rounded-pill {% if show == 'unread' %}text-bg-light{% else %}text-bg-warning{% endif %} ms-1">{{ unread_total }}</span>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+
+        {# ---------- Grouped inbox ---------- #}
+        {% for label, items in groups %}
+            <h2 class="lf-section-heading mt-4"><i class="bi bi-calendar3"></i> {{ label }}</h2>
+            <div class="card shadow-sm mb-3">
+                <ul class="list-group list-group-flush">
+                    {% for notification in items %}
+                        <li class="list-group-item lf-notification {% if not notification.is_read %}is-unread{% endif %}">
+                            <div class="d-flex gap-3">
+                                <span class="lf-glance-icon bg-{{ notification.color }}-subtle text-{{ notification.color }}-emphasis">
+                                    <i class="bi {{ notification.icon }}" aria-hidden="true"></i>
+                                </span>
+                                <div class="flex-grow-1 min-w-0">
+                                    <div class="d-flex flex-wrap align-items-center gap-2">
+                                        <span class="fw-semibold me-auto">
+                                            {{ notification.title }}
+                                            {% if not notification.is_read %}<span class="badge rounded-pill text-bg-primary ms-1">New</span>{% endif %}
+                                        </span>
+                                        <small class="text-secondary text-nowrap" title="{{ notification.created_at }}">
+                                            <i class="bi bi-clock"></i> {{ notification.created_at|timesince }} ago
+                                        </small>
+                                    </div>
+                                    <p class="mb-0 small text-secondary">{{ notification.message }}</p>
+                                </div>
+                                {% if not notification.is_read %}
+                                    <form method="post" action="{% url 'notification_mark_read' notification.pk %}" class="m-0 align-self-center">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                                        <button type="submit" class="btn btn-sm btn-link text-secondary p-1" title="Mark as read" aria-label="Mark “{{ notification.title }}” as read">
+                                            <i class="bi bi-check2"></i>
+                                        </button>
+                                    </form>
+                                {% endif %}
+                            </div>
+                        </li>
+                    {% endfor %}
+                </ul>
             </div>
         {% empty %}
-            <div class="list-group-item text-muted">You have no notifications.</div>
+            <div class="card card-body text-center py-5">
+                <span class="lf-empty-icon mx-auto mb-3"><i class="bi {% if show == 'unread' %}bi-check2-all{% else %}bi-bell-slash{% endif %}"></i></span>
+                {% if show == "unread" %}
+                    <h2 class="h5 fw-bold">No unread notifications</h2>
+                    <p class="text-secondary mb-0">You're all caught up. <a href="?show=all">See all notifications</a></p>
+                {% else %}
+                    <h2 class="h5 fw-bold">No notifications yet</h2>
+                    <p class="text-secondary mb-0">Updates about your matches and claims will appear here.</p>
+                {% endif %}
+            </div>
         {% endfor %}
+
+        {# ---------- Pagination ---------- #}
+        {% if page_obj.paginator.num_pages > 1 %}
+            <nav class="mt-4" aria-label="Notification pages">
+                <ul class="pagination justify-content-center">
+                    <li class="page-item {% if not page_obj.has_previous %}disabled{% endif %}">
+                        <a class="page-link" {% if page_obj.has_previous %}href="{% querystring page=page_obj.previous_page_number %}"{% endif %} aria-label="Previous page"><i class="bi bi-chevron-left"></i></a>
+                    </li>
+                    <li class="page-item disabled"><span class="page-link">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span></li>
+                    <li class="page-item {% if not page_obj.has_next %}disabled{% endif %}">
+                        <a class="page-link" {% if page_obj.has_next %}href="{% querystring page=page_obj.next_page_number %}"{% endif %} aria-label="Next page"><i class="bi bi-chevron-right"></i></a>
+                    </li>
+                </ul>
+            </nav>
+        {% endif %}
     </div>
 </div>
-
-{% if page_obj.paginator.num_pages > 1 %}
-<nav class="mt-4" aria-label="Notification pages">
-    <ul class="pagination justify-content-center">
-        {% if page_obj.has_previous %}
-            <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}">Previous</a></li>
-        {% endif %}
-        <li class="page-item disabled"><span class="page-link">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span></li>
-        {% if page_obj.has_next %}
-            <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}">Next</a></li>
-        {% endif %}
-    </ul>
-</nav>
-{% endif %}
 {% endblock %}

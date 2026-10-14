@@ -1,90 +1,107 @@
+{% load lostfinder %}
 {% comment %}
 Usage: {% include "items/_match_card.html" with suggestion=s can_decide=True %}
 can_decide: the viewer owns the lost item and may accept or reject.
 {% endcomment %}
-<div class="card shadow-sm h-100">
+{% with lost=suggestion.lost_item found=suggestion.found_item %}
+<div class="card h-100 shadow-sm lf-match-card lf-match-{{ suggestion.status }}">
+    <div class="card-header d-flex align-items-center gap-3 border-0 pb-0 bg-transparent">
+        {# Score ring: an SVG arc whose length is the score out of 100. #}
+        <div class="lf-score-ring {% if suggestion.score >= 70 %}is-strong{% elif suggestion.score >= 50 %}is-good{% else %}is-possible{% endif %}"
+             role="img" aria-label="{{ suggestion.score }}% match">
+            <svg viewBox="0 0 36 36" aria-hidden="true">
+                <circle class="lf-score-track" cx="18" cy="18" r="15.9155" pathLength="100"></circle>
+                <circle class="lf-score-value" cx="18" cy="18" r="15.9155" pathLength="100"
+                        stroke-dasharray="{{ suggestion.score }} 100"></circle>
+            </svg>
+            <span>{{ suggestion.score }}<small>%</small></span>
+        </div>
+        <div class="me-auto">
+            <div class="fw-bold">{% match_strength suggestion.score %}</div>
+            <small class="text-secondary">{{ suggestion.score }}% match &middot; suggested {{ suggestion.created_at|timesince }} ago</small>
+        </div>
+        <span class="badge rounded-pill
+            {% if suggestion.status == 'accepted' %}text-bg-success
+            {% elif suggestion.status == 'rejected' %}text-bg-danger
+            {% else %}text-bg-warning{% endif %}">
+            {% if suggestion.status == 'accepted' %}<i class="bi bi-check2"></i>
+            {% elif suggestion.status == 'rejected' %}<i class="bi bi-x"></i>
+            {% else %}<i class="bi bi-hourglass-split"></i>{% endif %}
+            {{ suggestion.get_status_display }}
+        </span>
+    </div>
+
     <div class="card-body">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-            <span class="badge
-                {% if suggestion.score >= 70 %}bg-success
-                {% elif suggestion.score >= 50 %}bg-primary
-                {% else %}bg-secondary{% endif %} fs-6">
-                {{ suggestion.score }}% match
-            </span>
-            <span class="badge
-                {% if suggestion.status == 'accepted' %}bg-success
-                {% elif suggestion.status == 'rejected' %}bg-danger
-                {% else %}bg-warning text-dark{% endif %}">
-                {{ suggestion.get_status_display }}
-            </span>
-        </div>
-
-        <div class="progress mb-3" style="height: 6px;"
-             role="progressbar" aria-label="Match score"
-             aria-valuenow="{{ suggestion.score }}" aria-valuemin="0" aria-valuemax="100">
-            <div class="progress-bar" style="width: {{ suggestion.score }}%"></div>
-        </div>
-
-        <div class="row g-2 mb-3">
-            <div class="col-6">
-                <div class="border rounded p-2 h-100">
-                    <small class="text-danger fw-semibold text-uppercase">Lost</small>
-                    <div class="fw-semibold">
-                        <a href="{% url 'lost_item_detail' suggestion.lost_item.pk %}">{{ suggestion.lost_item.title }}</a>
-                    </div>
-                    <small class="text-muted d-block">{{ suggestion.lost_item.category.name }}</small>
-                    <small class="text-muted d-block">{{ suggestion.lost_item.location }}</small>
-                    <small class="text-muted d-block">{{ suggestion.lost_item.date_lost }}</small>
+        {# Lost <-> found, side by side #}
+        <div class="lf-match-pair">
+            <a href="{% url 'lost_item_detail' lost.pk %}" class="lf-match-item text-reset text-decoration-none">
+                <img src="{{ lost|item_image }}" alt="" loading="lazy"
+                     onerror="this.onerror=null;this.src='{{ lost|item_placeholder }}'">
+                <div class="p-2">
+                    <span class="badge text-bg-danger mb-1"><i class="bi bi-exclamation-circle"></i> Lost</span>
+                    <div class="fw-semibold text-truncate" title="{{ lost.title }}">{{ lost.title }}</div>
+                    <small class="text-secondary d-block text-truncate"><i class="bi bi-geo-alt"></i> {{ lost.location }}</small>
+                    <small class="text-secondary d-block"><i class="bi bi-calendar3"></i> {{ lost.date_lost|date:"M j, Y" }}</small>
                 </div>
-            </div>
-            <div class="col-6">
-                <div class="border rounded p-2 h-100">
-                    <small class="text-success fw-semibold text-uppercase">Found</small>
-                    <div class="fw-semibold">
-                        <a href="{% url 'found_item_detail' suggestion.found_item.pk %}">{{ suggestion.found_item.title }}</a>
-                    </div>
-                    <small class="text-muted d-block">{{ suggestion.found_item.category.name }}</small>
-                    <small class="text-muted d-block">{{ suggestion.found_item.location }}</small>
-                    <small class="text-muted d-block">{{ suggestion.found_item.date_found }}</small>
+            </a>
+            <span class="lf-match-link" aria-hidden="true"><i class="bi bi-arrow-left-right"></i></span>
+            <a href="{% url 'found_item_detail' found.pk %}" class="lf-match-item text-reset text-decoration-none">
+                <img src="{{ found|item_image }}" alt="" loading="lazy"
+                     onerror="this.onerror=null;this.src='{{ found|item_placeholder }}'">
+                <div class="p-2">
+                    <span class="badge text-bg-primary mb-1"><i class="bi bi-check-circle"></i> Found</span>
+                    <div class="fw-semibold text-truncate" title="{{ found.title }}">{{ found.title }}</div>
+                    <small class="text-secondary d-block text-truncate"><i class="bi bi-geo-alt"></i> {{ found.location }}</small>
+                    <small class="text-secondary d-block"><i class="bi bi-calendar3"></i> {{ found.date_found|date:"M j, Y" }}</small>
                 </div>
-            </div>
+            </a>
         </div>
 
-        <p class="small text-muted mb-3">
-            <strong>Why:</strong> {{ suggestion.reason }}
-        </p>
+        {# Why the engine matched them #}
+        <div class="mt-3">
+            <div class="small fw-semibold text-secondary text-uppercase mb-2">Why it matched</div>
+            <ul class="list-unstyled d-flex flex-wrap gap-1 mb-0">
+                {% for part in suggestion.reason|match_reasons %}
+                    <li class="badge text-bg-light border fw-normal text-wrap text-start lf-reason">
+                        {{ part.text }}{% if part.points %} <strong class="text-success">+{{ part.points }}</strong>{% endif %}
+                    </li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
 
+    <div class="card-footer bg-transparent">
         {% if can_decide %}
             <form method="post" action="{% url 'match_update' suggestion.pk %}"
-                  class="d-flex flex-wrap gap-2">
+                  class="d-flex flex-wrap align-items-center gap-2">
                 {% csrf_token %}
                 <input type="hidden" name="next" value="{{ request.get_full_path }}">
                 {% if suggestion.status != 'accepted' %}
-                    <button class="btn btn-success btn-sm" name="action" value="accept">
-                        This is my item
+                    <button type="submit" class="btn btn-success btn-sm" name="action" value="accept">
+                        <i class="bi bi-hand-thumbs-up"></i> This is my item
                     </button>
                 {% endif %}
                 {% if suggestion.status != 'rejected' %}
-                    <button class="btn btn-outline-danger btn-sm" name="action" value="reject">
-                        Not mine
+                    <button type="submit" class="btn btn-outline-danger btn-sm" name="action" value="reject">
+                        <i class="bi bi-hand-thumbs-down"></i> Not mine
                     </button>
                 {% endif %}
                 {% if suggestion.status != 'pending' %}
-                    <button class="btn btn-outline-secondary btn-sm" name="action" value="reset">
-                        Undo
+                    <button type="submit" class="btn btn-outline-secondary btn-sm" name="action" value="reset">
+                        <i class="bi bi-arrow-counterclockwise"></i> Undo
                     </button>
                 {% endif %}
                 {% if suggestion.status == 'accepted' %}
-                    <a class="btn btn-primary btn-sm ms-auto"
-                       href="{% url 'found_item_detail' suggestion.found_item.pk %}">
-                        Claim this item
+                    <a class="btn btn-primary btn-sm ms-auto" href="{% url 'found_item_detail' found.pk %}">
+                        <i class="bi bi-shield-check"></i> Claim this item
                     </a>
                 {% endif %}
             </form>
         {% else %}
-            <p class="small mb-0 text-muted">
-                The owner of the lost report will review this match.
+            <p class="small mb-0 text-secondary">
+                <i class="bi bi-info-circle"></i> The owner of the lost report will review this match.
             </p>
         {% endif %}
     </div>
 </div>
+{% endwith %}
