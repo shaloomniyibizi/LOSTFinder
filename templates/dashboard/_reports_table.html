@@ -1,47 +1,36 @@
-<div class="card mb-4">
-    <div class="card-header">
-        <h3 class="card-title">{{ title }}</h3>
-        <div class="card-tools">
-            <a href="{% url 'lost_item_list' %}" class="btn btn-tool">Lost</a>
-            <a href="{% url 'found_item_list' %}" class="btn btn-tool">Found</a>
-        </div>
-    </div>
-    <div class="card-body p-0">
-        <div class="table-responsive">
-            <table class="table table-hover mb-0">
-                <thead>
-                    <tr>
-                        <th scope="col">Type</th>
-                        <th scope="col">Item</th>
-                        <th scope="col">Category</th>
-                        <th scope="col">Location</th>
-                        {% if show_reporter %}<th scope="col">Reporter</th>{% endif %}
-                        <th scope="col">Status</th>
-                        <th scope="col">Reported</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for row in rows %}
-                        <tr>
-                            <td>
-                                <span class="badge {% if row.kind == 'Lost' %}text-bg-danger{% else %}text-bg-success{% endif %}">{{ row.kind }}</span>
-                            </td>
-                            <td><a href="{{ row.url }}">{{ row.item.title }}</a></td>
-                            <td>{{ row.item.category.name }}</td>
-                            <td>{{ row.item.location|truncatechars:24 }}</td>
-                            {% if show_reporter %}
-                                <td class="text-truncate" style="max-width: 10rem;">{{ row.item.reporter.email }}</td>
-                            {% endif %}
-                            <td>{{ row.item.get_status_display }}</td>
-                            <td class="text-nowrap lf-table-num" title="{{ row.item.created_at }}">{{ row.item.created_at|date:"M j, H:i" }}</td>
-                        </tr>
-                    {% empty %}
-                        <tr>
-                            <td colspan="7" class="text-center text-secondary py-4">No reports yet.</td>
-                        </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    </div>
+<div class="table-responsive">
+    <table class="table table-hover mb-0">
+        <thead>
+            <tr>
+                <th scope="col">Type</th>
+                <th scope="col">Item</th>
+                <th scope="col">Category</th>
+                <th scope="col">Location</th>
+                {% if show_reporter %}<th scope="col">Reporter</th>{% endif %}
+                <th scope="col">Status</th>
+                <th scope="col">Reported</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in rows %}
+                <tr>
+                    <td>
+                        <span class="badge {% if row.kind == 'Lost' %}text-bg-danger{% else %}text-bg-success{% endif %}">{{ row.kind }}</span>
+                    </td>
+                    <td><a href="{{ row.url }}">{{ row.item.title }}</a></td>
+                    <td>{{ row.item.category.name }}</td>
+                    <td>{{ row.item.location|truncatechars:24 }}</td>
+                    {% if show_reporter %}
+                        <td class="text-truncate lf-cell-truncate">{{ row.item.reporter.email }}</td>
+                    {% endif %}
+                    <td>{{ row.item.get_status_display }}</td>
+                    <td class="text-nowrap lf-table-num" title="{{ row.item.created_at }}">{{ row.item.created_at|date:"M j, H:i" }}</td>
+                </tr>
+            {% empty %}
+                <tr>
+                    <td colspan="7" class="text-center text-secondary py-4">No reports yet.</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
 </div>

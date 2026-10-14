@@ -14,65 +14,70 @@
 {% block content %}
 {% include "claims/_messages.html" %}
 
-<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-    <p class="mb-0 text-secondary">
-        {% if dash.role == "reviewer" %}
-            Claims, custody and returns across campus.
-        {% else %}
-            Welcome back, {{ request.user.username }}. Here is where your items stand.
-        {% endif %}
-    </p>
-    <span class="lf-updated" aria-live="polite">
-        <i class="bi bi-arrow-clockwise"></i>
-        Live &middot; updated <span id="lf-updated">{{ metrics.generated_at }}</span>
-    </span>
+{# ---------- 1. Welcome header ---------- #}
+<div class="card border-0 shadow-sm overflow-hidden mb-4">
+    <div class="lf-dash-hero p-4">
+        <div class="row g-3 align-items-center">
+            <div class="col-lg">
+                <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+                    <span class="badge rounded-pill text-bg-light"><i class="bi bi-person-badge me-1"></i>{{ dash.role_label }}</span>
+                    <span class="badge rounded-pill lf-live-pill" aria-live="polite">
+                        <span class="lf-live-dot"></span> Live &middot; updated <span id="lf-updated">{{ metrics.generated_at }}</span>
+                    </span>
+                </div>
+                <h2 class="h3 fw-bold mb-1">{{ dash.greeting }}</h2>
+                <p class="mb-0 opacity-75">
+                    {% if dash.role == "reviewer" %}
+                        Claims, custody and returns across campus, at a glance.
+                    {% else %}
+                        Here's where your items stand today.
+                    {% endif %}
+                </p>
+            </div>
+            <div class="col-lg-auto d-flex flex-wrap gap-2">
+                {% for action in dash.actions %}
+                    <a class="btn btn-{{ action.style }} btn-sm" href="{{ action.url }}">
+                        <i class="bi {{ action.icon }} me-1" aria-hidden="true"></i>{{ action.label }}
+                    </a>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
 </div>
 
-{# ---------- Summary cards ---------- #}
-<div class="row">
+{# ---------- 2. KPI cards ---------- #}
+<div class="row g-3 mb-4">
     {% for card in dash.cards %}
-        <div class="col-lg-3 col-6">
-            <div class="small-box text-bg-{{ card.color }}" data-card="{{ card.key }}">
-                <div class="inner">
-                    <h3 data-metric="{{ card.key }}">{{ card.value }}</h3>
-                    <p class="mb-0">{{ card.label }}</p>
-                    <small class="opacity-75 d-none d-md-block">{{ card.hint }}</small>
+        <div class="col-sm-6 col-xl-3">
+            <div class="card h-100 border-0 shadow-sm lf-kpi" data-card="{{ card.key }}">
+                <div class="card-body d-flex align-items-start gap-3">
+                    <span class="lf-kpi-icon bg-{{ card.color }}-subtle text-{{ card.color }}-emphasis">
+                        <i class="bi {{ card.icon }}" aria-hidden="true"></i>
+                    </span>
+                    <div class="min-w-0">
+                        <div class="text-secondary small fw-semibold">{{ card.label }}</div>
+                        <div class="lf-kpi-value" data-metric="{{ card.key }}">{{ card.value }}</div>
+                        <div class="small text-secondary">{{ card.hint }}</div>
+                    </div>
                 </div>
-                <i class="small-box-icon bi {{ card.icon }}" aria-hidden="true"></i>
-                <a href="{{ card.url }}"
-                   class="small-box-footer link-light link-underline-opacity-0 link-underline-opacity-50-hover">
-                    Open <i class="bi bi-arrow-right-circle"></i>
+                <a href="{{ card.url }}" class="card-footer bg-transparent small text-decoration-none d-flex justify-content-between">
+                    <span>View details</span><i class="bi bi-arrow-right" aria-hidden="true"></i>
                 </a>
             </div>
         </div>
     {% endfor %}
 </div>
 
-{# ---------- Secondary stats ---------- #}
-<div class="row">
-    {% for stat in dash.stats %}
-        <div class="col-md-6 col-xl">
-            <a href="{{ stat.url }}" class="text-reset text-decoration-none">
-                <div class="info-box">
-                    <span class="info-box-icon text-bg-{{ stat.color }} shadow-sm">
-                        <i class="bi {{ stat.icon }}" aria-hidden="true"></i>
-                    </span>
-                    <div class="info-box-content">
-                        <span class="info-box-text">{{ stat.label }}</span>
-                        <span class="info-box-number" data-metric="{{ stat.key }}">{{ stat.value }}</span>
-                    </div>
-                </div>
-            </a>
-        </div>
-    {% endfor %}
-</div>
-
-{# ---------- Charts ---------- #}
-<div class="row">
-    <div class="col-lg-8">
-        <div class="card mb-4">
-            <div class="card-header">
-                <h3 class="card-title">Campus reports &middot; last 14 days</h3>
+{# ---------- 3. Activity chart + at a glance ---------- #}
+<div class="row g-4 mb-4">
+    <div class="col-xl-8">
+        <div class="card h-100 shadow-sm">
+            <div class="card-header d-flex flex-wrap align-items-center gap-2">
+                <h3 class="card-title mb-0 me-auto"><i class="bi bi-graph-up me-1 text-primary"></i> Campus reports &middot; last 14 days</h3>
+                <span class="small text-secondary">
+                    <strong class="text-body" data-metric="reports_7d">{{ dash.week_total }}</strong> in the last 7 days
+                    <span class="badge text-bg-light border ms-1" data-metric="reports_7d_trend">{{ dash.week_trend }}</span>
+                </span>
             </div>
             <div class="card-body">
                 <div class="lf-chart">
@@ -87,15 +92,174 @@
         </div>
     </div>
 
-    <div class="col-lg-4">
-        <div class="card mb-4">
+    <div class="col-xl-4">
+        <div class="card h-100 shadow-sm">
             <div class="card-header">
-                <h3 class="card-title" id="chart-status-title">{{ dash.charts.status.title }}</h3>
+                <h3 class="card-title mb-0"><i class="bi bi-speedometer2 me-1 text-primary"></i> At a glance</h3>
+            </div>
+            <ul class="list-group list-group-flush">
+                {% for stat in dash.stats %}
+                    <li class="list-group-item">
+                        <a href="{{ stat.url }}" class="d-flex align-items-center gap-3 text-reset text-decoration-none py-1">
+                            <span class="lf-glance-icon bg-{{ stat.color }}-subtle text-{{ stat.color }}-emphasis">
+                                <i class="bi {{ stat.icon }}" aria-hidden="true"></i>
+                            </span>
+                            <span class="me-auto">{{ stat.label }}</span>
+                            <strong class="fs-5 lf-table-num" data-metric="{{ stat.key }}">{{ stat.value }}</strong>
+                        </a>
+                    </li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+</div>
+
+{# ---------- 4. Work tables (tabs) + recent activity ---------- #}
+<div class="row g-4 mb-4">
+    <div class="col-xl-8">
+        <div class="card card-primary card-outline card-outline-tabs shadow-sm h-100">
+            <div class="card-header p-0 border-bottom-0">
+                <ul class="nav nav-tabs" role="tablist">
+                    {% if dash.role == "reviewer" %}
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-queue" type="button" role="tab" aria-controls="tab-queue" aria-selected="true">
+                                <i class="bi bi-clipboard-check me-1"></i>Claim queue
+                                <span class="badge rounded-pill text-bg-warning ms-1" data-metric="claims_to_review">{{ dash.tab_counts.claim_queue }}</span>
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-handover" type="button" role="tab" aria-controls="tab-handover" aria-selected="false">
+                                <i class="bi bi-box-arrow-in-right me-1"></i>Awaiting handover
+                                <span class="badge rounded-pill text-bg-primary ms-1" data-metric="awaiting_handover">{{ dash.tab_counts.awaiting_handover }}</span>
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-reports" type="button" role="tab" aria-controls="tab-reports" aria-selected="false">
+                                <i class="bi bi-list-ul me-1"></i>Recent reports
+                            </button>
+                        </li>
+                    {% else %}
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-matches" type="button" role="tab" aria-controls="tab-matches" aria-selected="true">
+                                <i class="bi bi-link-45deg me-1"></i>Matches awaiting your decision
+                                <span class="badge rounded-pill text-bg-warning ms-1" data-metric="pending_matches">{{ dash.tab_counts.pending_matches }}</span>
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-claims" type="button" role="tab" aria-controls="tab-claims" aria-selected="false">
+                                <i class="bi bi-clipboard-check me-1"></i>My claims
+                                <span class="badge rounded-pill text-bg-secondary ms-1">{{ dash.tab_counts.my_claims }}</span>
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-reports" type="button" role="tab" aria-controls="tab-reports" aria-selected="false">
+                                <i class="bi bi-list-ul me-1"></i>My recent reports
+                            </button>
+                        </li>
+                    {% endif %}
+                </ul>
+            </div>
+
+            <div class="card-body p-0">
+                <div class="tab-content">
+                    {% if dash.role == "reviewer" %}
+                        <div class="tab-pane fade show active" id="tab-queue" role="tabpanel" tabindex="0">
+                            {% include "dashboard/_claim_queue.html" with claims=dash.tables.claim_queue %}
+                        </div>
+                        <div class="tab-pane fade" id="tab-handover" role="tabpanel" tabindex="0">
+                            <ul class="list-group list-group-flush">
+                                {% for claim in dash.tables.awaiting_handover %}
+                                    <li class="list-group-item d-flex flex-wrap justify-content-between align-items-center gap-2">
+                                        <span>
+                                            <a href="{% url 'claim_detail' claim.pk %}" class="fw-semibold">{{ claim.found_item.title }}</a>
+                                            <small class="text-secondary d-block">{{ claim.claimant.email }} &middot; approved {{ claim.updated_at|timesince }} ago</small>
+                                        </span>
+                                        <a class="btn btn-sm btn-success" href="{% url 'claim_handover' claim.pk %}"><i class="bi bi-box-arrow-in-right"></i> Hand over</a>
+                                    </li>
+                                {% empty %}
+                                    <li class="list-group-item text-center text-secondary py-4"><i class="bi bi-check2-circle"></i> No approved claims waiting.</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                        <div class="tab-pane fade" id="tab-reports" role="tabpanel" tabindex="0">
+                            {% include "dashboard/_reports_table.html" with rows=dash.tables.recent_reports show_reporter=True %}
+                        </div>
+                    {% else %}
+                        <div class="tab-pane fade show active" id="tab-matches" role="tabpanel" tabindex="0">
+                            {% include "dashboard/_pending_matches.html" with suggestions=dash.tables.pending_matches %}
+                        </div>
+                        <div class="tab-pane fade" id="tab-claims" role="tabpanel" tabindex="0">
+                            <ul class="list-group list-group-flush">
+                                {% for claim in dash.tables.my_claims %}
+                                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                                        <a href="{% url 'claim_detail' claim.pk %}">{{ claim.found_item.title }}</a>
+                                        {% include "claims/_status_badge.html" with status=claim.status label=claim.get_status_display %}
+                                    </li>
+                                {% empty %}
+                                    <li class="list-group-item text-center text-secondary py-4">
+                                        No claims yet. <a href="{% url 'found_item_list' %}">Browse found items</a>
+                                    </li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                        <div class="tab-pane fade" id="tab-reports" role="tabpanel" tabindex="0">
+                            {% include "dashboard/_reports_table.html" with rows=dash.tables.my_reports show_reporter=False %}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="card-footer bg-transparent small text-end">
+                {% if dash.role == "reviewer" %}
+                    <a href="{% url 'review_queue' %}">Open the full review queue <i class="bi bi-arrow-right"></i></a>
+                {% else %}
+                    <a href="{% url 'match_list' %}">All my matches <i class="bi bi-arrow-right"></i></a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-4">
+        <div class="card shadow-sm h-100">
+            <div class="card-header">
+                <h3 class="card-title mb-0"><i class="bi bi-clock-history me-1 text-primary"></i> {{ dash.activity_feed_title }}</h3>
+            </div>
+            <div class="card-body lf-feed">
+                {% if dash.activity_feed %}
+                    <div class="timeline mb-0">
+                        {% for entry in dash.activity_feed %}
+                            <div>
+                                <i class="timeline-icon bi {{ entry.icon }} {{ entry.color }}" aria-hidden="true"></i>
+                                <div class="timeline-item">
+                                    <span class="time"><i class="bi bi-clock"></i> {{ entry.when|timesince }} ago</span>
+                                    <h4 class="timeline-header small fw-semibold"><a href="{{ entry.url }}">{{ entry.title }}</a></h4>
+                                    <div class="timeline-body small text-secondary">{{ entry.body|truncatechars:90 }}</div>
+                                </div>
+                            </div>
+                        {% endfor %}
+                        <div><i class="timeline-icon bi bi-hourglass text-bg-secondary" aria-hidden="true"></i></div>
+                    </div>
+                {% else %}
+                    <div class="text-center text-secondary py-4">
+                        <span class="lf-empty-icon mb-2"><i class="bi bi-inbox"></i></span>
+                        <p class="mb-0 small">Nothing yet. Activity will appear here.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+{# ---------- 5. Breakdown charts ---------- #}
+<div class="row g-4">
+    <div class="col-lg-6">
+        <div class="card h-100 shadow-sm">
+            <div class="card-header">
+                <h3 class="card-title mb-0" id="chart-status-title"><i class="bi bi-bar-chart me-1 text-primary"></i> {{ dash.charts.status.title }}</h3>
             </div>
             <div class="card-body">
-                <div class="lf-chart">
-                    <canvas id="chart-status" role="img"
-                            aria-label="Bar chart: {{ dash.charts.status.title }}"></canvas>
+                <div class="lf-chart lf-chart-sm">
+                    <canvas id="chart-status" role="img" aria-label="Bar chart: {{ dash.charts.status.title }}"></canvas>
                 </div>
                 <details class="mt-2 small">
                     <summary>Show data table</summary>
@@ -104,22 +268,16 @@
             </div>
         </div>
     </div>
-</div>
-
-<div class="row">
-    <div class="col-lg-4">
-        <div class="card mb-4">
+    <div class="col-lg-6">
+        <div class="card h-100 shadow-sm">
             <div class="card-header">
-                <h3 class="card-title">Reports by category</h3>
+                <h3 class="card-title mb-0"><i class="bi bi-tags me-1 text-primary"></i> Reports by category</h3>
             </div>
             <div class="card-body">
                 <div class="lf-chart lf-chart-sm">
-                    <canvas id="chart-categories" role="img"
-                            aria-label="Bar chart of lost and found reports per category"></canvas>
+                    <canvas id="chart-categories" role="img" aria-label="Bar chart of lost and found reports per category"></canvas>
                 </div>
-                <p class="text-secondary small mb-0 d-none" data-empty-for="categories">
-                    No reports yet.
-                </p>
+                <p class="text-secondary small mb-0 d-none" data-empty-for="categories">No reports yet.</p>
                 <details class="mt-2 small">
                     <summary>Show data table</summary>
                     <div class="table-responsive mt-2" data-table-for="categories"></div>
@@ -127,72 +285,6 @@
             </div>
         </div>
     </div>
-
-    <div class="col-lg-8">
-        {% if dash.role == "reviewer" %}
-            {% include "dashboard/_claim_queue.html" with claims=dash.tables.claim_queue %}
-        {% else %}
-            {% include "dashboard/_pending_matches.html" with suggestions=dash.tables.pending_matches %}
-        {% endif %}
-    </div>
-</div>
-
-{# ---------- Role tables ---------- #}
-<div class="row">
-    {% if dash.role == "reviewer" %}
-        <div class="col-lg-4">
-            <div class="card mb-4">
-                <div class="card-header">
-                    <h3 class="card-title">Awaiting handover</h3>
-                    <div class="card-tools">
-                        <a href="{% url 'review_queue' %}?status=approved" class="btn btn-tool">View all</a>
-                    </div>
-                </div>
-                <ul class="list-group list-group-flush">
-                    {% for claim in dash.tables.awaiting_handover %}
-                        <li class="list-group-item d-flex justify-content-between align-items-center">
-                            <span>
-                                <a href="{% url 'claim_detail' claim.pk %}">{{ claim.found_item.title }}</a>
-                                <small class="text-secondary d-block">{{ claim.claimant.email }} &middot; approved {{ claim.updated_at|timesince }} ago</small>
-                            </span>
-                            <a class="btn btn-sm btn-success" href="{% url 'claim_handover' claim.pk %}">Hand over</a>
-                        </li>
-                    {% empty %}
-                        <li class="list-group-item text-secondary">No approved claims waiting.</li>
-                    {% endfor %}
-                </ul>
-            </div>
-        </div>
-        <div class="col-lg-8">
-            {% include "dashboard/_reports_table.html" with rows=dash.tables.recent_reports title="Recent reports" show_reporter=True %}
-        </div>
-    {% else %}
-        <div class="col-lg-5">
-            <div class="card mb-4">
-                <div class="card-header">
-                    <h3 class="card-title">My claims</h3>
-                    <div class="card-tools">
-                        <a href="{% url 'claim_list' %}" class="btn btn-tool">View all</a>
-                    </div>
-                </div>
-                <ul class="list-group list-group-flush">
-                    {% for claim in dash.tables.my_claims %}
-                        <li class="list-group-item d-flex justify-content-between align-items-center">
-                            <a href="{% url 'claim_detail' claim.pk %}">{{ claim.found_item.title }}</a>
-                            {% include "claims/_status_badge.html" with status=claim.status label=claim.get_status_display %}
-                        </li>
-                    {% empty %}
-                        <li class="list-group-item text-secondary">
-                            No claims yet. <a href="{% url 'found_item_list' %}">Browse found items</a>
-                        </li>
-                    {% endfor %}
-                </ul>
-            </div>
-        </div>
-        <div class="col-lg-7">
-            {% include "dashboard/_reports_table.html" with rows=dash.tables.my_reports title="My recent reports" show_reporter=False %}
-        </div>
-    {% endif %}
 </div>
 
 {{ metrics|json_script:"dashboard-metrics" }}

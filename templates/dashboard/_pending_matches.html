@@ -1,43 +1,33 @@
-<div class="card mb-4">
-    <div class="card-header">
-        <h3 class="card-title">Matches awaiting your decision</h3>
-        <div class="card-tools">
-            <a href="{% url 'match_list' %}?status=pending" class="btn btn-tool">View all</a>
-        </div>
-    </div>
-    <div class="card-body p-0">
-        <div class="table-responsive">
-            <table class="table table-striped table-hover mb-0">
-                <thead>
-                    <tr>
-                        <th scope="col">Your lost item</th>
-                        <th scope="col">Possible match</th>
-                        <th scope="col" class="text-end">Score</th>
-                        <th scope="col"><span class="visually-hidden">Actions</span></th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for suggestion in suggestions %}
-                        <tr>
-                            <td>{{ suggestion.lost_item.title }}</td>
-                            <td>
-                                <a href="{% url 'found_item_detail' suggestion.found_item.pk %}">{{ suggestion.found_item.title }}</a>
-                                <small class="text-secondary d-block">{{ suggestion.found_item.location }}</small>
-                            </td>
-                            <td class="text-end lf-table-num">{{ suggestion.score }}%</td>
-                            <td class="text-end">
-                                <a class="btn btn-sm btn-primary" href="{% url 'lost_item_detail' suggestion.lost_item.pk %}">Review</a>
-                            </td>
-                        </tr>
-                    {% empty %}
-                        <tr>
-                            <td colspan="4" class="text-center text-secondary py-4">
-                                No matches waiting. We check again whenever a found item is reported.
-                            </td>
-                        </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    </div>
+<div class="table-responsive">
+    <table class="table table-striped table-hover mb-0">
+        <thead>
+            <tr>
+                <th scope="col">Your lost item</th>
+                <th scope="col">Possible match</th>
+                <th scope="col" class="text-end">Score</th>
+                <th scope="col"><span class="visually-hidden">Actions</span></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for suggestion in suggestions %}
+                <tr>
+                    <td>{{ suggestion.lost_item.title }}</td>
+                    <td>
+                        <a href="{% url 'found_item_detail' suggestion.found_item.pk %}">{{ suggestion.found_item.title }}</a>
+                        <small class="text-secondary d-block">{{ suggestion.found_item.location }}</small>
+                    </td>
+                    <td class="text-end lf-table-num">{{ suggestion.score }}%</td>
+                    <td class="text-end">
+                        <a class="btn btn-sm btn-primary" href="{% url 'lost_item_detail' suggestion.lost_item.pk %}">Review</a>
+                    </td>
+                </tr>
+            {% empty %}
+                <tr>
+                    <td colspan="4" class="text-center text-secondary py-4">
+                        No matches waiting. We check again whenever a found item is reported.
+                    </td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
 </div>

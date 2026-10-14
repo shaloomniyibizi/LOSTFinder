@@ -332,7 +332,80 @@ class LiveMetricsTests(DashboardTestCase):
 
         self.assertContains(
             page,
-            f'<h3 data-metric="my_open_lost">{values["my_open_lost"]}</h3>',
+            f'<div class="lf-kpi-value" data-metric="my_open_lost">{values["my_open_lost"]}</div>',
             html=True,
         )
         self.assertContains(page, 'id="dashboard-metrics"')
+
+    def test_week_trend_follows_records(self):
+        values = self.metrics(self.student)["values"]
+        self.assertEqual(values["reports_7d"], 0)
+        self.assertEqual(values["reports_7d_trend"], "Same as previous 7 days")
+
+        self.lost_item()
+        self.found_item()
+        # One report 10 days ago falls in the previous week.
+        old = self.lost_item(title="Old umbrella")
+        LostItem.objects.filter(pk=old.pk).update(
+            created_at=timezone.now() - timedelta(days=10)
+        )
+
+        values = self.metrics(self.student)["values"]
+        self.assertEqual(values["reports_7d"], 2)
+        self.assertEqual(values["reports_7d_trend"], "+1 vs previous 7 days")
+
+
+class DashboardLayoutTests(DashboardTestCase):
+    def test_member_layout(self):
+        self.student.first_name = "Amina"
+        self.student.save()
+        self.client.force_login(self.student)
+
+        response = self.client.get(reverse("dashboard"))
+
+        self.assertRegex(response.content.decode(), r"Good (morning|afternoon|evening), Amina")
+        for text in ("Report lost item", "Turn in found item", "At a glance",
+                     "Matches awaiting your decision", "My recent reports",
+                     "Your recent notifications", 'data-bs-toggle="tab"',
+                     'data-metric="reports_7d"'):
+            self.assertContains(response, text)
+        self.assertNotContains(response, "Review queue</a>")
+
+    def test_reviewer_layout(self):
+        self.client.force_login(self.officer)
+
+        response = self.client.get(reverse("dashboard"))
+
+        for text in ("Security Officer", "Recent claim decisions", "Claim queue",
+                     "Awaiting handover", "Recent reports", "Open the full review queue"):
+            self.assertContains(response, text)
+        self.assertRegex(response.content.decode(), r"Good \w+, officer")
+
+    def test_activity_feed_shows_claim_decisions_for_reviewers(self):
+        claim = claim_services.submit_claim(
+            self.found_item(), self.student, "Serial number C02XK1 on base"
+        )
+        claim_services.review_claim(claim, self.officer, Claim.Status.APPROVED)
+        self.client.force_login(self.officer)
+
+        feed = self.client.get(reverse("dashboard")).context["dash"]["activity_feed"]
+
+        self.assertEqual(feed[0]["title"], f"Claim #{claim.pk} approved")
+        self.assertEqual(feed[1]["title"], f"Claim #{claim.pk} submitted")
+        self.assertEqual(feed[0]["url"], reverse("claim_detail", args=[claim.pk]))
+
+    def test_activity_feed_shows_member_notifications(self):
+        claim_services.submit_claim(
+            self.found_item(), self.student, "Serial number C02XK1 on base"
+        )
+        self.client.force_login(self.finder)
+
+        response = self.client.get(reverse("dashboard"))
+
+        self.assertContains(response, "Someone claimed an item you found")
+        self.assertContains(response, "timeline-item")
+
+    def test_empty_activity_feed(self):
+        self.client.force_login(self.student)
+
+        self.assertContains(self.client.get(reverse("dashboard")), "Nothing yet. Activity will appear here.")

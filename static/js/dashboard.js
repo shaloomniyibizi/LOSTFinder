@@ -183,7 +183,7 @@
                 const text = String(value);
                 if (el.textContent.trim() === text) return;
                 el.textContent = text;
-                const box = el.closest(".small-box, .info-box");
+                const box = el.closest(".lf-kpi, .list-group-item, .badge");
                 if (box) {
                     box.classList.remove("lf-pulse");
                     void box.offsetWidth;   // restart the animation

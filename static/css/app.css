@@ -303,3 +303,62 @@
 .lf-report-card .lf-report-img { transition: transform .3s; }
 .lf-report-card a:hover .lf-report-img { transform: scale(1.03); }
 .lf-report-card > a { overflow: hidden; }
+
+/* ---------- Dashboard ---------- */
+
+.lf-dash-hero {
+    background: linear-gradient(120deg, #0f1d3a 0%, #1f3a73 60%, #2a5bb8 100%);
+    color: #fff;
+}
+
+.lf-live-pill {
+    background: rgba(255, 255, 255, .14);
+    color: #fff;
+    font-weight: 500;
+}
+
+.lf-kpi { transition: transform .15s, box-shadow .15s; }
+.lf-kpi:hover { transform: translateY(-2px); box-shadow: var(--bs-box-shadow) !important; }
+
+.lf-kpi-icon,
+.lf-glance-icon {
+    flex-shrink: 0;
+    display: grid;
+    place-items: center;
+    border-radius: 12px;
+}
+
+.lf-kpi-icon { width: 3rem; height: 3rem; font-size: 1.35rem; }
+.lf-glance-icon { width: 2.25rem; height: 2.25rem; border-radius: 10px; }
+
+.lf-kpi-value {
+    font-size: 2rem;
+    font-weight: 700;
+    line-height: 1.15;
+    font-variant-numeric: tabular-nums;
+}
+
+.lf-kpi .card-footer { border-top: 1px solid var(--bs-border-color-translucent); }
+
+.lf-cell-truncate { max-width: 12rem; }
+
+.lf-feed { max-height: 26rem; overflow-y: auto; }
+.lf-feed .timeline::before { left: 18px; }
+.lf-feed .timeline > div > .timeline-icon { left: 4px; }
+.lf-feed .timeline > div > .timeline-item { margin-left: 46px; margin-right: 0; }
+
+.card-outline-tabs .nav-tabs .nav-link { white-space: nowrap; }
+.card-outline-tabs .nav-tabs { flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; }
+
+.min-w-0 { min-width: 0; }
+
+/* Feed: time on its own line so titles keep the full width. */
+.lf-feed .timeline > div > .timeline-item > .time {
+    float: none;
+    display: block;
+    padding: .5rem .75rem 0;
+}
+.lf-feed .timeline > div > .timeline-item > .timeline-header { padding-top: .25rem; }
+
+.lf-kpi .card-footer { display: flex; width: 100%; }
+.lf-kpi .card-footer .bi { margin-left: auto; }

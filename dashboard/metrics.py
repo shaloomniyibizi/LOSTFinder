@@ -16,7 +16,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from accounts.decorators import is_reviewer
-from claims.models import Claim, ItemHandover
+from claims.models import Claim, ClaimReviewLog, ItemHandover
 from claims.services import ACTIVE_STATUSES
 from items.models import FoundItem, ItemCategory, LostItem, MatchSuggestion
 
@@ -60,6 +60,78 @@ def activity_chart():
         "lost": [lost.get(day, 0) for day in days],
         "found": [found.get(day, 0) for day in days],
     }
+
+
+def week_trend(activity):
+    """Reports in the last 7 days, and the change against the 7 before."""
+    last = sum(activity["lost"][-7:]) + sum(activity["found"][-7:])
+    previous = sum(activity["lost"][:-7]) + sum(activity["found"][:-7])
+    change = last - previous
+    if change > 0:
+        text = f"+{change} vs previous 7 days"
+    elif change < 0:
+        text = f"{change} vs previous 7 days".replace("-", "−")
+    else:
+        text = "Same as previous 7 days"
+    return last, text
+
+
+# ---------- header, quick actions, activity feed ----------
+
+def greeting(user):
+    hour = timezone.localtime().hour
+    part = "morning" if hour < 12 else "afternoon" if hour < 18 else "evening"
+    return f"Good {part}, {user.first_name or user.username}"
+
+
+def role_label(user):
+    if user.is_staff:
+        return "Administrator"
+    profile = getattr(user, "profile", None)
+    return profile.get_user_type_display() if profile else "Member"
+
+
+def _action(label, icon, url, style="outline-light"):
+    return {"label": label, "icon": icon, "url": url, "style": style}
+
+
+DECISION_STYLE = {
+    "submitted": ("bi-send", "text-bg-secondary"),
+    "under_review": ("bi-hourglass-split", "text-bg-info"),
+    "approved": ("bi-check2-circle", "text-bg-success"),
+    "rejected": ("bi-x-circle", "text-bg-danger"),
+    "cancelled": ("bi-slash-circle", "text-bg-secondary"),
+    "completed": ("bi-box-arrow-in-right", "text-bg-primary"),
+}
+
+
+def _review_activity(limit=6):
+    logs = ClaimReviewLog.objects.select_related(
+        "claim__found_item", "reviewer"
+    ).order_by("-created_at")[:limit]
+    entries = []
+    for log in logs:
+        icon, color = DECISION_STYLE.get(log.decision, ("bi-dot", "text-bg-secondary"))
+        who = log.reviewer.email if log.reviewer else "System"
+        entries.append({
+            "icon": icon, "color": color, "when": log.created_at,
+            "title": f"Claim #{log.claim_id} {log.get_decision_display().lower()}",
+            "body": f"{log.claim.found_item.title} · {who}",
+            "url": reverse("claim_detail", args=[log.claim_id]),
+        })
+    return entries
+
+
+def _notification_activity(user, limit=6):
+    return [
+        {
+            "icon": "bi-bell" if n.is_read else "bi-bell-fill",
+            "color": "text-bg-secondary" if n.is_read else "text-bg-warning",
+            "when": n.created_at, "title": n.title, "body": n.message,
+            "url": reverse("notification_list"),
+        }
+        for n in user.notifications.order_by("-created_at")[:limit]
+    ]
 
 
 def category_chart(limit=6):
@@ -173,6 +245,17 @@ def reviewer_dashboard(user):
             "awaiting_handover": _claims(approved.order_by("updated_at"))[:TABLE_ROWS],
             "recent_reports": _report_rows(LostItem.objects, FoundItem.objects),
         },
+        "tab_counts": {
+            "claim_queue": cards[0]["value"],
+            "awaiting_handover": cards[1]["value"],
+        },
+        "actions": [
+            _action("Review queue", "bi-shield-check", queue_url, "light"),
+            _action("Awaiting handover", "bi-box-arrow-in-right", f"{queue_url}?status=approved"),
+            _action("Found items", "bi-box-seam", reverse("found_item_list")),
+        ],
+        "activity_feed": _review_activity(),
+        "activity_feed_title": "Recent claim decisions",
     }
 
 
@@ -230,6 +313,17 @@ def member_dashboard(user):
             "pending_matches": pending_matches.select_related(
                 "lost_item", "found_item")[:TABLE_ROWS],
         },
+        "tab_counts": {
+            "pending_matches": cards[1]["value"],
+            "my_claims": my_claims.count(),
+        },
+        "actions": [
+            _action("Report lost item", "bi-search", reverse("lost_item_create"), "warning"),
+            _action("Turn in found item", "bi-box-seam", reverse("found_item_create"), "light"),
+            _action("My matches", "bi-link-45deg", reverse("match_list")),
+        ],
+        "activity_feed": _notification_activity(user),
+        "activity_feed_title": "Your recent notifications",
     }
 
 
@@ -237,6 +331,9 @@ def build_dashboard(user):
     reviewer = is_reviewer(user)
     data = reviewer_dashboard(user) if reviewer else member_dashboard(user)
     data["role"] = "reviewer" if reviewer else "member"
+    data["greeting"] = greeting(user)
+    data["role_label"] = role_label(user)
+    data["week_total"], data["week_trend"] = week_trend(data["charts"]["activity"])
     return data
 
 
@@ -247,6 +344,9 @@ def serialize_metrics(data):
         "values": {
             card["key"]: card["value"]
             for card in chain(data["cards"], data["stats"])
+        } | {
+            "reports_7d": data["week_total"],
+            "reports_7d_trend": data["week_trend"],
         },
         "charts": data["charts"],
         "generated_at": timezone.localtime().strftime("%H:%M:%S"),
