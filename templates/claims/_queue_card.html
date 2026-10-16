@@ -1,0 +1,78 @@
+{% load lostfinder %}
+{% comment %}
+One claim in the security review queue. Reviewers may see the claimant and
+their evidence. Context: claim (with waiting_since, urgency, match_score
+set by the review_queue view).
+{% endcomment %}
+{% with item=claim.found_item %}
+<div class="card shadow-sm lf-queue-card lf-claim-{{ claim.status }}">
+    <div class="card-body">
+        <div class="d-flex gap-3">
+            <a href="{% url 'claim_detail' claim.pk %}" class="flex-shrink-0" tabindex="-1" aria-hidden="true">
+                <img src="{{ item|item_image }}" alt="" class="lf-claim-thumb" loading="lazy"
+                     onerror="this.onerror=null;this.src='{{ item|item_placeholder }}'">
+            </a>
+
+            <div class="flex-grow-1 min-w-0">
+                <div class="d-flex flex-wrap align-items-start gap-2">
+                    <div class="me-auto min-w-0">
+                        <a href="{% url 'claim_detail' claim.pk %}" class="fw-bold text-reset text-decoration-none d-block text-truncate">{{ item.title }}</a>
+                        <small class="text-secondary">
+                            Claim #{{ claim.pk }} &middot; {{ item.category.name }} &middot;
+                            <i class="bi bi-geo-alt"></i> {{ item.location }}
+                        </small>
+                    </div>
+                    {% include "claims/_status_badge.html" with status=claim.status label=claim.get_status_display %}
+                </div>
+
+                <div class="d-flex flex-wrap align-items-center gap-2 mt-2 small">
+                    <span class="badge text-bg-light border fw-normal text-truncate lf-cell-truncate" title="{{ claim.claimant.email }}">
+                        <i class="bi bi-person"></i> {{ claim.claimant.email }}
+                    </span>
+                    {% if claim.urgency %}
+                        <span class="badge rounded-pill lf-wait lf-wait-{{ claim.urgency }}" title="{{ claim.waiting_since }}">
+                            <i class="bi {% if claim.urgency == 'overdue' %}bi-exclamation-triangle-fill{% elif claim.urgency == 'due' %}bi-alarm{% else %}bi-clock{% endif %}"></i>
+                            {% if claim.status == "approved" %}Approved{% else %}Waiting{% endif %} {{ claim.waiting_since|timesince }}{% if claim.status == "approved" %} ago{% endif %}
+                        </span>
+                    {% else %}
+                        <span class="text-secondary"><i class="bi bi-clock"></i> Updated {{ claim.updated_at|date:"M j, Y" }}</span>
+                    {% endif %}
+                    {% if claim.match_score %}
+                        <span class="badge rounded-pill {% if claim.match_score >= 70 %}text-bg-success{% elif claim.match_score >= 50 %}text-bg-primary{% else %}text-bg-secondary{% endif %}"
+                              title="Best match between the claimant's own lost report and this item">
+                            <i class="bi bi-link-45deg"></i> {{ claim.match_score }}% match with their lost report
+                        </span>
+                    {% endif %}
+                </div>
+
+                <p class="lf-evidence small mb-0 mt-2">
+                    <i class="bi bi-quote text-secondary" aria-hidden="true"></i>
+                    <span class="visually-hidden">Proof of ownership: </span>{{ claim.evidence_description|truncatechars:160 }}
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <div class="card-footer bg-transparent d-flex flex-wrap align-items-center gap-2">
+        <small class="text-secondary me-auto">
+            <i class="bi bi-send"></i> Submitted {{ claim.submitted_at|date:"M j, H:i" }}
+        </small>
+        {% if claim.status == "approved" %}
+            <a class="btn btn-sm btn-outline-secondary" href="{% url 'claim_detail' claim.pk %}">
+                <i class="bi bi-eye"></i> View claim
+            </a>
+            <a class="btn btn-sm btn-success" href="{% url 'claim_handover' claim.pk %}">
+                <i class="bi bi-box-arrow-in-right"></i> Record handover
+            </a>
+        {% elif claim.status == "submitted" or claim.status == "under_review" %}
+            <a class="btn btn-sm btn-primary" href="{% url 'claim_detail' claim.pk %}">
+                <i class="bi bi-shield-check"></i> Review claim
+            </a>
+        {% else %}
+            <a class="btn btn-sm btn-outline-secondary" href="{% url 'claim_detail' claim.pk %}">
+                <i class="bi bi-eye"></i> View
+            </a>
+        {% endif %}
+    </div>
+</div>
+{% endwith %}

@@ -187,6 +187,28 @@ class StaticAssetTests(DashboardTestCase):
                 self.assertNotIn("{#", html)
                 self.assertNotIn("#}", html)
 
+    def test_own_assets_are_cache_busted(self):
+        import os
+        import re
+
+        from dashboard.templatetags.assets import asset
+
+        version = int(os.path.getmtime(finders.find("css/app.css")))
+        self.assertEqual(asset("css/app.css"), f"/static/css/app.css?v={version}")
+        self.assertEqual(asset("css/missing.css"), "/static/css/missing.css")
+
+        self.client.force_login(self.officer)   # can open every page below
+        for name in ("dashboard", "lost_item_create", "review_queue", "profile"):
+            html = self.client.get(reverse(name), follow=True).content.decode()
+            with self.subTest(page=name):
+                self.assertRegex(html, r'/static/css/app\.css\?v=\d+"')
+                self.assertIsNone(re.search(r'/static/(css|js)/[\w-]+\.(css|js)"', html))
+        self.client.logout()
+        self.assertRegex(
+            self.client.get(reverse("home")).content.decode(),
+            r'/static/js/auth-modals\.js\?v=\d+"',
+        )
+
     def test_signed_in_users_are_sent_from_home_to_dashboard(self):
         self.client.force_login(self.student)
 

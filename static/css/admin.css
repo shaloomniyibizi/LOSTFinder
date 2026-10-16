@@ -1,0 +1,259 @@
+/*
+ * LOSTFinder: Django admin inside the AdminLTE layout (templates/admin/).
+ * Loaded after Django's admin CSS, so equal-specificity rules here win.
+ */
+
+/* ---------- 1. Django admin colours -> AdminLTE / Bootstrap tokens ----------
+   Uses var(--bs-*), which already switch with data-bs-theme, so light and
+   dark both follow the app's theme toggle. html[data-bs-theme] outranks
+   Django's :root and html[data-theme=...] definitions. */
+html[data-bs-theme] {
+    --primary: var(--bs-primary);
+    --secondary: var(--bs-secondary);
+    --accent: var(--bs-warning);
+    --primary-fg: #fff;
+
+    --body-fg: var(--bs-body-color);
+    --body-bg: var(--bs-body-bg);
+    --body-quiet-color: var(--bs-secondary-color);
+    --body-medium-color: var(--bs-body-color);
+    --body-loud-color: var(--bs-emphasis-color);
+
+    --header-color: var(--bs-body-color);
+    --header-branding-color: var(--bs-emphasis-color);
+    --header-bg: var(--bs-body-bg);
+    --header-link-color: var(--bs-emphasis-color);
+
+    --breadcrumbs-fg: var(--bs-secondary-color);
+    --breadcrumbs-link-fg: var(--bs-link-color);
+    --breadcrumbs-bg: transparent;
+
+    --link-fg: var(--bs-link-color);
+    --link-hover-color: var(--bs-link-hover-color);
+    --link-selected-fg: var(--bs-primary);
+
+    --hairline-color: var(--bs-border-color-translucent);
+    --border-color: var(--bs-border-color);
+
+    --error-fg: var(--bs-form-invalid-color);
+
+    --message-debug-bg: var(--bs-secondary-bg-subtle);
+    --message-info-bg: var(--bs-info-bg-subtle);
+    --message-success-bg: var(--bs-success-bg-subtle);
+    --message-warning-bg: var(--bs-warning-bg-subtle);
+    --message-error-bg: var(--bs-danger-bg-subtle);
+
+    --darkened-bg: var(--bs-tertiary-bg);
+    --selected-bg: var(--bs-secondary-bg);
+    --selected-row: var(--bs-warning-bg-subtle);
+
+    --button-fg: #fff;
+    --button-bg: var(--bs-secondary);
+    --button-hover-bg: #565e64;
+    --default-button-bg: var(--bs-primary);
+    --default-button-hover-bg: #0b5ed7;
+    --close-button-bg: var(--bs-secondary);
+    --close-button-hover-bg: #565e64;
+    --delete-button-bg: var(--bs-danger);
+    --delete-button-hover-bg: #b02a37;
+
+    --object-tools-fg: #fff;
+    --object-tools-bg: var(--bs-primary);
+    --object-tools-hover-bg: #0b5ed7;
+
+    --font-family-primary: var(--bs-body-font-family);
+}
+
+/* Django sets a smaller page font; keep AdminLTE's for the layout and use
+   Django's size only for the admin content itself. */
+body.lf-admin {
+    font-size: var(--bs-body-font-size);
+    font-family: var(--bs-body-font-family);
+    height: auto;
+}
+.lf-admin #content,
+.lf-admin .lf-admin-crumbs { font-size: .875rem; }
+
+/* ---------- 2. Keep Django's element styles out of the AdminLTE shell ----------
+   :where() adds no specificity, so each rule here ties Django's element
+   rule (and wins by order) but still loses to any Bootstrap/AdminLTE class. */
+:where(.lf-admin .app-header, .lf-admin .app-sidebar, .lf-admin .app-footer) ul,
+:where(.lf-admin .app-header, .lf-admin .app-sidebar, .lf-admin .app-footer) ol {
+    margin: 0;
+    padding: 0;
+}
+:where(.lf-admin .app-header, .lf-admin .app-sidebar, .lf-admin .app-footer) ul > li {
+    list-style: none;
+    padding: 0;
+}
+:where(.lf-admin .app-header, .lf-admin .app-sidebar, .lf-admin .app-footer) li {
+    font-size: inherit;
+    line-height: inherit;
+}
+:where(.lf-admin .app-header, .lf-admin .app-sidebar, .lf-admin .app-footer) p {
+    margin: 0;
+    padding: 0;
+    line-height: inherit;
+}
+:where(.lf-admin .app-header, .lf-admin .app-sidebar, .lf-admin .app-footer) a:link,
+:where(.lf-admin .app-header, .lf-admin .app-sidebar, .lf-admin .app-footer) a:visited,
+:where(.lf-admin .app-header, .lf-admin .app-sidebar, .lf-admin .app-footer) a:hover,
+:where(.lf-admin .app-header, .lf-admin .app-sidebar, .lf-admin .app-footer) a:focus {
+    color: inherit;
+}
+/* Components whose link colour comes from a Bootstrap variable. */
+.lf-admin .app-header .nav-link:is(:link, :visited) { color: var(--bs-nav-link-color); }
+.lf-admin .app-header .nav-link:is(:hover, :focus) { color: var(--bs-nav-link-hover-color); }
+.lf-admin .app-header .dropdown-item:is(:link, :visited) { color: var(--bs-dropdown-link-color); }
+.lf-admin .app-header .dropdown-footer { color: var(--bs-link-color); }
+
+/* ---------- 3. Breadcrumbs (Django's <ol class="breadcrumbs">) ---------- */
+.lf-admin-crumbs .breadcrumbs {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    background: none;
+    color: var(--bs-secondary-color);
+}
+.lf-admin-crumbs .breadcrumbs li {
+    list-style: none;
+    padding: 0;
+    font-size: inherit;
+}
+.lf-admin-crumbs .breadcrumbs li + li::before {
+    content: "/";
+    padding: 0 .5rem;
+    color: var(--bs-secondary-color);
+}
+.lf-admin-crumbs .breadcrumbs li:first-child a::before {
+    content: "\F425"; /* bi-house-door */
+    font-family: "bootstrap-icons";
+    margin-right: .35rem;
+    vertical-align: -.1em;
+}
+.lf-admin-crumbs .breadcrumbs a:link,
+.lf-admin-crumbs .breadcrumbs a:visited { color: var(--bs-link-color); }
+
+/* ---------- 4. Content: Django modules as AdminLTE cards ---------- */
+.lf-admin-card > .card-body { padding: 1.5rem; }
+.lf-admin .lf-admin-card #content { padding: 0; }
+.lf-admin #content h1 {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--bs-emphasis-color);
+    margin-bottom: 1rem;
+}
+
+.lf-admin #content .module {
+    border: 1px solid var(--bs-border-color);
+    border-radius: var(--bs-border-radius-lg);
+    overflow: hidden;
+    background: var(--bs-body-bg);
+    box-shadow: var(--bs-box-shadow-sm);
+}
+.lf-admin #content .module h2,
+.lf-admin #content .module caption,
+.lf-admin #content .inline-group h2 {
+    background: var(--bs-tertiary-bg);
+    color: var(--bs-emphasis-color);
+    border-bottom: 1px solid var(--bs-border-color);
+    font-size: .8rem;
+    font-weight: 700;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    padding: .65rem .9rem;
+}
+.lf-admin #content .module caption a:link,
+.lf-admin #content .module caption a:visited,
+.lf-admin #content .module h2 a:link,
+.lf-admin #content .module h2 a:visited { color: var(--bs-emphasis-color); }
+
+/* Bootstrap defaults that would otherwise reshape Django's markup. */
+.lf-admin #content table { caption-side: top; }
+.lf-admin #content legend { float: none; width: auto; font-size: inherit; margin-bottom: 0; }
+.lf-admin #content fieldset.collapse { display: block; } /* Bootstrap hides .collapse */
+
+/* Buttons and object tools: Bootstrap shapes, Django colours (mapped above). */
+.lf-admin #content .button,
+.lf-admin #content input[type="submit"],
+.lf-admin #content input[type="button"],
+.lf-admin #content .submit-row input,
+.lf-admin #content a.button {
+    border-radius: var(--bs-border-radius);
+    font-weight: 500;
+}
+.lf-admin #content .submit-row {
+    background: var(--bs-tertiary-bg);
+    border: 1px solid var(--bs-border-color);
+    border-radius: var(--bs-border-radius-lg);
+}
+.lf-admin #content .object-tools a:link,
+.lf-admin #content .object-tools a:visited {
+    border-radius: var(--bs-border-radius);
+    font-weight: 500;
+}
+
+/* Form controls follow the theme's surfaces. */
+.lf-admin #content input:not([type="checkbox"]):not([type="radio"]):not([type="submit"]):not([type="button"]),
+.lf-admin #content select,
+.lf-admin #content textarea {
+    border-radius: var(--bs-border-radius);
+}
+.lf-admin #content :is(input, select, textarea):focus {
+    border-color: var(--bs-primary);
+    outline: 2px solid rgba(var(--bs-primary-rgb), .25);
+    outline-offset: 0;
+}
+
+/* Changelist: filter panel and search bar as cards. */
+.lf-admin #changelist-filter {
+    border: 1px solid var(--bs-border-color);
+    border-radius: var(--bs-border-radius-lg);
+    background: var(--bs-body-bg);
+    overflow: hidden;
+}
+.lf-admin #changelist #toolbar {
+    background: var(--bs-tertiary-bg);
+    border-radius: var(--bs-border-radius-lg);
+}
+.lf-admin #changelist .actions {
+    background: var(--bs-tertiary-bg);
+    border-radius: var(--bs-border-radius);
+}
+
+/* ---------- 5. Login and other pages without admin access ---------- */
+.lf-admin-guest-body { max-width: 30rem; padding-block: 3rem; }
+.lf-admin-guest #content .form-row { padding: .5rem 0; }
+.lf-admin-guest #content .submit-row { background: none; border: 0; padding: 0; margin-top: 1rem; }
+.lf-admin-guest #content .submit-row input { width: 100%; padding: .55rem 1rem; }
+
+/* ---------- 6. Popups (related-object pickers) ---------- */
+.lf-admin-popup .lf-admin-card { border: 0; box-shadow: none; }
+
+/* ---------- 7. Fixes from the visual check ---------- */
+
+/* Django 6 underlines links with a:not(..., #content-main.app-list a, ...),
+   specificity (1,1,2). The body id plus :is(:link, :visited) gives (1,2,1),
+   enough to keep the shell's links plain. Admin content keeps Django's
+   underlined links. */
+#lf-admin :is(.app-header, .app-sidebar, .app-footer, .lf-admin-crumbs) a:is(:link, :visited) {
+    text-decoration: none;
+}
+#lf-admin .lf-admin-crumbs a:hover { text-decoration: underline; }
+
+/* Breadcrumbs: AdminLTE's "/" only, not Django's " > " as well. */
+.lf-admin-crumbs ol.breadcrumbs li::after { content: none; }
+
+/* Admin home: no grey band under the "Recent actions" card. */
+.lf-admin #content-related { background: transparent; }
+
+/* Login: primary sign-in button, like the app's own forms. */
+.lf-admin-guest #content .submit-row input[type="submit"] {
+    background: var(--bs-primary);
+    border-color: var(--bs-primary);
+}
+.lf-admin-guest #content .submit-row input[type="submit"]:hover { background: #0b5ed7; }
+.lf-admin-login-mark { width: 3rem; height: 3rem; font-size: 1.1rem; border-radius: 12px; }

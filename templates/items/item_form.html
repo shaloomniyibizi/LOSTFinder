@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load static %}
+{% load static assets %}
 
 {% block title %}
     {% if is_edit %}Edit{% elif item_type == "Lost" %}Report lost{% else %}Turn in found{% endif %} item
@@ -178,6 +178,6 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="{% static 'js/profile-form.js' %}"></script>
-<script src="{% static 'js/item-form.js' %}"></script>
+<script src="{% asset 'js/profile-form.js' %}"></script>
+<script src="{% asset 'js/item-form.js' %}"></script>
 {% endblock %}

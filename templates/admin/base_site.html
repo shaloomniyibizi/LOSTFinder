@@ -1,0 +1,8 @@
+{% extends "admin/base.html" %}
+
+{% block title %}{% if subtitle %}{{ subtitle }} | {% endif %}{{ title }} | {{ site_title|default:_('Django site admin') }}{% endblock %}
+
+{# Branding and the theme toggle live in the AdminLTE header/sidebar (admin/base.html). #}
+{% block branding %}{% endblock %}
+
+{% block nav-global %}{% endblock %}

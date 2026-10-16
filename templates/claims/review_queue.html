@@ -1,90 +1,169 @@
 {% extends "base.html" %}
 
-{% block title %}Claim Review Queue{% endblock %}
+{% block title %}{% if selected_status == "approved" %}Awaiting handover{% else %}Review queue{% endif %}{% endblock %}
 
 {% block breadcrumbs %}
-    <li class="breadcrumb-item active" aria-current="page">Review queue</li>
+    {% if selected_status == "approved" %}
+        <li class="breadcrumb-item"><a href="{% url 'review_queue' %}">Review queue</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Awaiting handover</li>
+    {% else %}
+        <li class="breadcrumb-item active" aria-current="page">Review queue</li>
+    {% endif %}
 {% endblock %}
 
 {% block content %}
-<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
-    <div>
-        <h1 class="h3">Claim Review Queue</h1>
-        <p class="text-muted mb-0">Verify ownership, approve or reject claims, and record handovers.</p>
-    </div>
-    <div class="btn-group flex-wrap" role="group" aria-label="Filter by status">
-        {% for value, label in status_filters %}
-            <a href="?status={{ value }}"
-               class="btn btn-sm {% if selected_status == value %}btn-primary{% else %}btn-outline-primary{% endif %}">
-                {{ label }}
-            </a>
-        {% endfor %}
-    </div>
-</div>
-
 {% include "claims/_messages.html" %}
 
-<form method="get" class="d-flex gap-2 mb-3">
-    <input type="hidden" name="status" value="{{ selected_status }}">
-    <input class="form-control" name="q" value="{{ query }}"
-           placeholder="Search by item title or claimant email">
-    <button class="btn btn-outline-primary" type="submit">Search</button>
-</form>
+{# ---------- Header, tabs and search ---------- #}
+<div class="card shadow-sm border-0 overflow-hidden mb-4">
+    <div class="lf-form-hero {% if selected_status == 'approved' %}lf-hero-handover{% else %}lf-hero-security{% endif %} p-4">
+        <div class="d-flex flex-wrap align-items-center gap-3">
+            <span class="lf-form-hero-icon">
+                <i class="bi {% if selected_status == 'approved' %}bi-box-arrow-in-right{% else %}bi-shield-check{% endif %}" aria-hidden="true"></i>
+            </span>
+            <div class="me-auto">
+                {% if selected_status == "approved" %}
+                    <h1 class="h4 fw-bold mb-1">Awaiting handover</h1>
+                    <p class="mb-0 opacity-75">Approved claims waiting for their owners to collect. Oldest approvals first.</p>
+                {% elif selected_status == "closed" %}
+                    <h1 class="h4 fw-bold mb-1">Closed claims</h1>
+                    <p class="mb-0 opacity-75">Completed, rejected and cancelled claims, most recent first.</p>
+                {% elif selected_status == "all" %}
+                    <h1 class="h4 fw-bold mb-1">All claims</h1>
+                    <p class="mb-0 opacity-75">Every claim on campus, newest first.</p>
+                {% else %}
+                    <h1 class="h4 fw-bold mb-1">Claim review queue</h1>
+                    <p class="mb-0 opacity-75">Verify ownership and approve or reject claims. Oldest claims first.</p>
+                {% endif %}
+            </div>
+            <a class="btn btn-outline-light btn-sm" href="{% url 'dashboard' %}">
+                <i class="bi bi-speedometer2"></i> Open dashboard
+            </a>
+        </div>
 
-<div class="card shadow-sm">
-    <div class="table-responsive">
-        <table class="table table-hover align-middle mb-0">
-            <thead class="table-light">
-                <tr>
-                    <th>#</th>
-                    <th>Item</th>
-                    <th>Claimant</th>
-                    <th>Submitted</th>
-                    <th>Status</th>
-                    <th></th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for claim in claims %}
-                    <tr>
-                        <td>{{ claim.pk }}</td>
-                        <td>
-                            {{ claim.found_item.title }}
-                            <small class="text-muted d-block">{{ claim.found_item.location }}</small>
-                        </td>
-                        <td>{{ claim.claimant.email }}</td>
-                        <td>{{ claim.submitted_at|date:"M j, H:i" }}</td>
-                        <td>{% include "claims/_status_badge.html" with status=claim.status label=claim.get_status_display %}</td>
-                        <td class="text-end">
-                            <a class="btn btn-sm btn-outline-primary"
-                               href="{% url 'claim_detail' claim.pk %}">Open</a>
-                        </td>
-                    </tr>
-                {% empty %}
-                    <tr><td colspan="6" class="text-center text-muted py-4">No claims in this view.</td></tr>
-                {% endfor %}
-            </tbody>
-        </table>
+        {# Whole-queue workload, independent of the search below #}
+        <div class="row g-2 g-md-3 mt-3" aria-label="Queue summary">
+            {% for stat in header_stats %}
+                <div class="col-6 col-lg-3">
+                    <a href="{{ stat.url }}" class="lf-hero-stat{% if stat.alert %} is-alert{% endif %}">
+                        <span class="lf-hero-stat-icon"><i class="bi {{ stat.icon }}" aria-hidden="true"></i></span>
+                        <span class="min-w-0">
+                            <span class="lf-hero-stat-value">{{ stat.value }}</span>
+                            <span class="lf-hero-stat-label">{{ stat.label }}</span>
+                            <span class="lf-hero-stat-hint">{{ stat.hint }}</span>
+                        </span>
+                    </a>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="card-body">
+        <form method="get" class="row g-2 align-items-end" role="search">
+            <input type="hidden" name="status" value="{{ selected_status }}">
+            <div class="col">
+                <label class="form-label small fw-semibold text-secondary" for="q">Search claims</label>
+                <div class="input-group">
+                    <span class="input-group-text"><i class="bi bi-search" aria-hidden="true"></i></span>
+                    <input class="form-control" id="q" name="q" type="search" value="{{ query }}"
+                           placeholder="Item title or claimant email">
+                    {% if query %}
+                        <a class="btn btn-outline-secondary" href="{% querystring q=None page=None %}" aria-label="Clear search"><i class="bi bi-x-lg"></i></a>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="col-auto">
+                <button class="btn btn-primary" type="submit"><i class="bi bi-funnel"></i> Search</button>
+            </div>
+        </form>
+
+        <ul class="nav nav-pills lf-status-tabs flex-nowrap overflow-auto mt-3" aria-label="Filter claims">
+            {% for value, label, count in filter_tabs %}
+                <li class="nav-item">
+                    <a class="nav-link text-nowrap {% if selected_status == value %}active{% endif %}"
+                       href="{% querystring status=value page=None %}"
+                       {% if selected_status == value %}aria-current="page"{% endif %}>
+                        {{ label }}
+                        <span class="badge rounded-pill {% if selected_status == value %}text-bg-light{% elif value == 'active' and count %}text-bg-warning{% elif value == 'approved' and count %}text-bg-success{% else %}text-bg-secondary{% endif %} ms-1">{{ count }}</span>
+                    </a>
+                </li>
+            {% endfor %}
+        </ul>
     </div>
 </div>
 
+{# ---------- Handover reminder ---------- #}
+{% if selected_status == "approved" and claims %}
+    <div class="callout callout-info bg-body shadow-sm mb-4 d-flex gap-3 align-items-start">
+        <i class="bi bi-person-vcard fs-4 text-info" aria-hidden="true"></i>
+        <div class="small text-body">
+            <strong>Before handing an item over:</strong> check the claimant's university ID matches the
+            email on the claim, ask them to describe the item once more, then use <em>Record handover</em>.
+        </div>
+    </div>
+{% endif %}
+
+{# ---------- Summary line ---------- #}
+<div class="d-flex flex-wrap align-items-center gap-2 mb-3 small text-secondary">
+    {% if page_obj.paginator.count %}
+        Showing <strong class="text-body">{{ page_obj.start_index }}&ndash;{{ page_obj.end_index }}</strong>
+        of <strong class="text-body">{{ page_obj.paginator.count }}</strong>
+        {% if query %}for &ldquo;{{ query }}&rdquo;{% endif %}
+    {% endif %}
+    {% if selected_status == "active" or selected_status == "approved" %}
+        <span class="ms-auto d-flex flex-wrap gap-2">
+            <span><span class="lf-wait-dot lf-wait-ok"></span> Under a day</span>
+            <span><span class="lf-wait-dot lf-wait-due"></span> 1&ndash;3 days</span>
+            <span><span class="lf-wait-dot lf-wait-overdue"></span> Over 3 days</span>
+        </span>
+    {% endif %}
+</div>
+
+{# ---------- Queue ---------- #}
+{% if claims %}
+    <div class="row g-3">
+        {% for claim in claims %}
+            <div class="col-xxl-6">
+                {% include "claims/_queue_card.html" %}
+            </div>
+        {% endfor %}
+    </div>
+{% else %}
+    <div class="card shadow-sm">
+        <div class="card-body text-center py-5">
+            <span class="lf-empty-icon mb-3">
+                <i class="bi {% if query %}bi-search{% elif selected_status == 'approved' %}bi-bag-check{% else %}bi-check2-circle{% endif %}"></i>
+            </span>
+            {% if query %}
+                <h2 class="h5 fw-bold">No claims match &ldquo;{{ query }}&rdquo;</h2>
+                <p class="text-secondary mb-3">Try another item title or email address.</p>
+                <a class="btn btn-outline-secondary" href="{% querystring q=None page=None %}">Clear search</a>
+            {% elif selected_status == "approved" %}
+                <h2 class="h5 fw-bold">Nothing waiting for handover</h2>
+                <p class="text-secondary mb-0">Approved claims will appear here until their owners collect them.</p>
+            {% elif selected_status == "active" %}
+                <h2 class="h5 fw-bold">The queue is clear</h2>
+                <p class="text-secondary mb-0">New claims will appear here as soon as they are submitted.</p>
+            {% else %}
+                <h2 class="h5 fw-bold">No claims here yet</h2>
+                <p class="text-secondary mb-0">Claims will appear here once they are closed.</p>
+            {% endif %}
+        </div>
+    </div>
+{% endif %}
+
+{# ---------- Pagination ---------- #}
 {% if page_obj.paginator.num_pages > 1 %}
-<nav class="mt-4" aria-label="Claim pages">
-    <ul class="pagination justify-content-center">
-        {% if page_obj.has_previous %}
-            <li class="page-item">
-                <a class="page-link" href="?status={{ selected_status }}&q={{ query|urlencode }}&page={{ page_obj.previous_page_number }}">Previous</a>
+    <nav class="mt-4" aria-label="Claim pages">
+        <ul class="pagination justify-content-center">
+            <li class="page-item {% if not page_obj.has_previous %}disabled{% endif %}">
+                <a class="page-link" {% if page_obj.has_previous %}href="{% querystring page=page_obj.previous_page_number %}"{% endif %} aria-label="Previous page"><i class="bi bi-chevron-left"></i></a>
             </li>
-        {% endif %}
-        <li class="page-item disabled">
-            <span class="page-link">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
-        </li>
-        {% if page_obj.has_next %}
-            <li class="page-item">
-                <a class="page-link" href="?status={{ selected_status }}&q={{ query|urlencode }}&page={{ page_obj.next_page_number }}">Next</a>
+            <li class="page-item disabled"><span class="page-link">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span></li>
+            <li class="page-item {% if not page_obj.has_next %}disabled{% endif %}">
+                <a class="page-link" {% if page_obj.has_next %}href="{% querystring page=page_obj.next_page_number %}"{% endif %} aria-label="Next page"><i class="bi bi-chevron-right"></i></a>
             </li>
-        {% endif %}
-    </ul>
-</nav>
+        </ul>
+    </nav>
 {% endif %}
 {% endblock %}

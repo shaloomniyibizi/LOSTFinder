@@ -1,5 +1,5 @@
 {% extends "base_public.html" %}
-{% load static %}
+{% load static assets %}
 
 {% block title %}Complete your profile{% endblock %}
 
@@ -43,5 +43,5 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="{% static 'js/profile-form.js' %}"></script>
+<script src="{% asset 'js/profile-form.js' %}"></script>
 {% endblock %}

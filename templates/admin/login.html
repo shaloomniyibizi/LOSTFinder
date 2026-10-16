@@ -1,0 +1,13 @@
+{% extends "admin/login.html" %}
+{% comment %}
+Django's admin login, plus a heading for the AdminLTE login card.
+Extends Django's own admin/login.html (same name), so the form is unchanged.
+{% endcomment %}
+
+{% block content_title %}
+    <div class="text-center mb-3">
+        <span class="lf-brand-mark lf-admin-login-mark mb-2" aria-hidden="true">LF</span>
+        <h1 class="mb-1">Admin sign in</h1>
+        <p class="text-body-secondary small mb-0">Staff and security accounts only. Use your username.</p>
+    </div>
+{% endblock %}

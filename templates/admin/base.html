@@ -1,0 +1,159 @@
+{% load i18n static tz assets admin_ui %}<!DOCTYPE html>
+{% get_current_language as LANGUAGE_CODE %}{% get_current_language_bidi as LANGUAGE_BIDI %}
+<html lang="{{ LANGUAGE_CODE|default:"en-us" }}" dir="{{ LANGUAGE_BIDI|yesno:'rtl,ltr,auto' }}">
+<head>
+{% comment %}
+LOSTFinder's AdminLTE skin for the Django admin.
+
+Same structure and blocks as django/contrib/admin/templates/admin/base.html,
+wrapped in the app's AdminLTE layout:
+  - staff pages: AdminLTE header, an admin sidebar and the content in a card
+  - pages without admin permission (login, logged out): slim top bar + card
+  - popups (related-object pickers): content only
+Django's own form/table CSS still styles the content; static/css/admin.css
+maps its colours onto the AdminLTE theme so light/dark follow the app toggle.
+{% endcomment %}
+<meta charset="UTF-8">
+<title>{% block title %}{% endblock %}</title>
+{% include "layouts/_theme_init.html" %}
+<script {% csp_nonce_attr %}>
+    /* Django admin reads data-theme; mirror the app's AdminLTE colour mode. */
+    (function () {
+        var root = document.documentElement;
+        function sync() { root.setAttribute("data-theme", root.getAttribute("data-bs-theme") || "light"); }
+        sync();
+        new MutationObserver(sync).observe(root, { attributes: true, attributeFilter: ["data-bs-theme"] });
+    })();
+</script>
+<meta name="color-scheme" content="light dark">
+<link rel="stylesheet" href="{% static 'vendor/adminlte/css/adminlte.min.css' %}">
+<link rel="stylesheet" href="{% static 'vendor/bootstrap-icons/bootstrap-icons.min.css' %}">
+<link rel="stylesheet" href="{% block stylesheet %}{% static "admin/css/base.css" %}{% endblock %}" {% csp_nonce_attr %}>
+{% block dark-mode-vars %}
+  {# Django's dark palette (message icons etc.); its own toggle script is replaced by the app's. #}
+  <link rel="stylesheet" href="{% static "admin/css/dark_mode.css" %}" {% csp_nonce_attr %}>
+{% endblock %}
+{% block extrastyle %}{% endblock %}
+{% if LANGUAGE_BIDI %}<link rel="stylesheet" href="{% block stylesheet_rtl %}{% static "admin/css/rtl.css" %}{% endblock %}" {% csp_nonce_attr %}>{% endif %}
+{% block extrahead %}{% endblock %}
+{% block responsive %}
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="{% static "admin/css/responsive.css" %}" {% csp_nonce_attr %}>
+    {% if LANGUAGE_BIDI %}<link rel="stylesheet" href="{% static "admin/css/responsive_rtl.css" %}" {% csp_nonce_attr %}>{% endif %}
+{% endblock %}
+{% block blockbots %}<meta name="robots" content="NONE,NOARCHIVE">{% endblock %}
+<link rel="stylesheet" href="{% asset 'css/app.css' %}">
+<link rel="stylesheet" href="{% asset 'css/admin.css' %}">
+</head>
+
+<body id="lf-admin" class="lf-admin {% if is_popup %}popup lf-admin-popup{% elif has_permission %}layout-fixed fixed-header sidebar-expand-lg lf-admin-staff{% else %}layout-fixed fixed-header lf-admin-guest{% endif %} bg-body-tertiary {% block bodyclass %}{% endblock %}"
+  data-admin-utc-offset="{% now "Z" %}"
+  data-admin-server-timezone="{% get_current_timezone as time_zone %}{{ time_zone }}">
+<a href="#content-start" class="skip-to-content-link">{% translate 'Skip to main content' %}</a>
+
+{% if not is_popup %}<div class="app-wrapper">{% endif %}
+
+    {% if not is_popup %}
+    {% block header %}
+        {% if has_permission %}
+            {# Same top bar as the rest of LOSTFinder: theme toggle, notifications, user menu #}
+            {% include "layouts/_header.html" %}
+        {% else %}
+            <nav class="app-header navbar navbar-expand bg-body">
+                <div class="container-fluid">
+                    <a href="{% url 'home' %}" class="navbar-brand d-flex align-items-center gap-2">
+                        <span class="lf-brand-mark">LF</span>
+                        <span class="fw-semibold">{{ site_header|default:_('Django administration') }}</span>
+                    </a>
+                    <ul class="navbar-nav ms-auto">
+                        {% include "layouts/_theme_toggle.html" %}
+                    </ul>
+                </div>
+            </nav>
+        {% endif %}
+        {# Kept so templates that fill these blocks still render without errors. #}
+        {% block branding %}{% endblock %}
+        {% block usertools %}{% endblock %}
+        {% block nav-global %}{% endblock %}
+    {% endblock %}
+
+    {% if has_permission %}
+        {# Outside the nav-sidebar block: admin/index.html and app_index.html empty that block. #}
+        {% include "admin/_lf_sidebar.html" %}
+    {% endif %}
+    {% block nav-sidebar %}{% endblock %}
+    {% endif %}
+
+    <main id="content-start" class="{% if not is_popup %}app-main{% endif %}" tabindex="-1">
+        {% if not is_popup %}
+        <div class="app-content-header">
+            <div class="container-fluid">
+                {% block nav-breadcrumbs %}
+                    <nav class="lf-admin-crumbs" aria-label="{% translate 'Breadcrumbs' %}">
+                        {% block breadcrumbs %}
+                            <ol class="breadcrumbs">
+                                <li><a href="{% url 'admin:index' %}">{% translate 'Home' %}</a></li>
+                                {% if title %}<li aria-current="page">{{ title }}</li>{% endif %}
+                            </ol>
+                        {% endblock %}
+                    </nav>
+                {% endblock %}
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="{% if not is_popup %}app-content{% endif %}">
+            <div class="{% if is_popup %}p-3{% elif has_permission %}container-fluid{% else %}container lf-admin-guest-body{% endif %}">
+                {% block messages %}
+                    {% for message in messages %}
+                        <div class="alert alert-{{ message.tags|alert_class }} alert-dismissible fade show" role="alert">
+                            {{ message|capfirst }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="{% translate 'Close' %}"></button>
+                        </div>
+                    {% endfor %}
+                {% endblock messages %}
+
+                <div class="card shadow-sm lf-admin-card">
+                    <div class="card-body">
+                        <div id="content" class="{% block coltype %}colM{% endblock %}">
+                            <div class="titles-and-tools">
+                                <div class="titles">
+                                    {% block pretitle %}{% endblock %}
+                                    {% block content_title %}{% if title %}<h1>{{ title }}</h1>{% endif %}{% endblock %}
+                                    {% block content_subtitle %}{% if subtitle %}<h2>{{ subtitle }}</h2>{% endif %}{% endblock %}
+                                </div>
+                                {% block object-tools %}{% endblock %}
+                            </div>
+                            {% block content %}
+                                {{ content }}
+                            {% endblock %}
+                            {% block sidebar %}{% endblock %}
+                            <br class="clear">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    {% if not is_popup %}
+    <footer class="app-footer">
+        <div class="float-end d-none d-sm-inline text-secondary">{% block footer %}{% endblock %}</div>
+        <strong>&copy; {% now "Y" %} LOSTFinder</strong> &middot; {{ site_header|default:_('Django administration') }}
+    </footer>
+    {% endif %}
+
+{% if not is_popup %}</div>{% endif %}
+
+<!-- SVGs used by Django admin widgets -->
+<svg xmlns="http://www.w3.org/2000/svg" class="base-svgs">
+  <symbol viewBox="0 0 24 24" id="icon-auto"><path d="M0 0h24v24H0z" fill="currentColor"/><path d="M12 22C6.477 22 2 17.523 2 12S6.477 2 12 2s10 4.477 10 10-4.477 10-10 10zm0-2V4a8 8 0 1 0 0 16z"/></symbol>
+  <symbol viewBox="0 0 24 24" id="icon-moon"><path d="M0 0h24v24H0z" fill="currentColor"/><path d="M10 7a7 7 0 0 0 12 4.9v.1c0 5.523-4.477 10-10 10S2 17.523 2 12 6.477 2 12 2h.1A6.979 6.979 0 0 0 10 7zm-6 5a8 8 0 0 0 15.062 3.762A9 9 0 0 1 8.238 4.938 7.999 7.999 0 0 0 4 12z"/></symbol>
+  <symbol viewBox="0 0 24 24" id="icon-sun"><path d="M0 0h24v24H0z" fill="currentColor"/><path d="M12 18a6 6 0 1 1 0-12 6 6 0 0 1 0 12zm0-2a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM11 1h2v3h-2V1zm0 19h2v3h-2v-3zM3.515 4.929l1.414-1.414L7.05 5.636 5.636 7.05 3.515 4.93zM16.95 18.364l1.414-1.414 2.121 2.121-1.414 1.414-2.121-2.121zm2.121-14.85l1.414 1.415-2.121 2.121-1.414-1.414 2.121-2.121zM5.636 16.95l1.414 1.414-2.121 2.121-1.414-1.414 2.121-2.121zM23 11v2h-3v-2h3zM4 11v2H1v-2h3z"/></symbol>
+</svg>
+
+<script src="{% static 'vendor/bootstrap/js/bootstrap.bundle.min.js' %}"></script>
+{% if not is_popup %}<script src="{% static 'vendor/adminlte/js/adminlte.min.js' %}"></script>{% endif %}
+{% block extrabody %}{% endblock extrabody %}
+</body>
+</html>

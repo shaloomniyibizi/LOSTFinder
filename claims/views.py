@@ -2,9 +2,10 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
-from django.db.models import Q
+from django.db.models import Count, Q
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
@@ -14,11 +15,11 @@ from accounts.decorators import (
     profile_completed_required,
     reviewer_required,
 )
-from items.models import FoundItem
+from items.models import FoundItem, MatchSuggestion
 
 from . import services
 from .forms import ClaimForm, HandoverForm, ReviewForm
-from .models import Claim
+from .models import Claim, ItemHandover
 
 
 def _error_text(error):
@@ -103,6 +104,82 @@ REVIEW_FILTERS = [
     ("all", "All"),
 ]
 
+CLOSED_STATUSES = (
+    Claim.Status.REJECTED,
+    Claim.Status.COMPLETED,
+    Claim.Status.CANCELLED,
+)
+
+# Waiting-time badges in the queue: amber after a day, red after three.
+WAIT_DUE_HOURS = 24
+WAIT_OVERDUE_HOURS = 72
+
+
+def _wait_urgency(since):
+    hours = (timezone.now() - since).total_seconds() / 3600
+    if hours >= WAIT_OVERDUE_HOURS:
+        return "overdue"
+    if hours >= WAIT_DUE_HOURS:
+        return "due"
+    return "ok"
+
+
+def _claimant_match_scores(claims):
+    """
+    Best match score between each claimant's lost reports and the item they
+    claimed: a strong match is a useful ownership signal for reviewers.
+    """
+    claims = list(claims)
+    if not claims:
+        return {}
+    rows = MatchSuggestion.objects.filter(
+        found_item_id__in={c.found_item_id for c in claims},
+        lost_item__reporter_id__in={c.claimant_id for c in claims},
+    ).exclude(
+        status=MatchSuggestion.Status.REJECTED,
+    ).values_list("found_item_id", "lost_item__reporter_id", "score")
+
+    best = {}
+    for found_id, reporter_id, score in rows:
+        key = (found_id, reporter_id)
+        best[key] = max(score, best.get(key, 0))
+    return best
+
+
+def _queue_header_stats():
+    """
+    Stat tiles for the review queue header. These describe the whole queue
+    (not the current search), so the desk always sees its real workload.
+    """
+    overdue_before = timezone.now() - timezone.timedelta(hours=WAIT_OVERDUE_HOURS)
+    totals = Claim.objects.aggregate(
+        to_review=Count("id", filter=Q(status__in=services.ACTIVE_STATUSES)),
+        overdue=Count("id", filter=Q(
+            status__in=services.ACTIVE_STATUSES, submitted_at__lte=overdue_before,
+        )),
+        to_hand_over=Count("id", filter=Q(status=Claim.Status.APPROVED)),
+    )
+    handed_over_today = ItemHandover.objects.filter(
+        handed_over_at__date=timezone.localdate()
+    ).count()
+
+    queue_url = reverse("review_queue")
+    return [
+        {"label": "To review", "value": totals["to_review"], "icon": "bi-clipboard-check",
+         "hint": "Submitted or under review", "url": f"{queue_url}?status=active",
+         "alert": False},
+        {"label": "Overdue", "value": totals["overdue"],
+         "icon": "bi-exclamation-triangle-fill" if totals["overdue"] else "bi-check2-circle",
+         "hint": f"Waiting over {WAIT_OVERDUE_HOURS // 24} days", "url": f"{queue_url}?status=active",
+         "alert": totals["overdue"] > 0},
+        {"label": "To hand over", "value": totals["to_hand_over"], "icon": "bi-box-arrow-in-right",
+         "hint": "Approved, not collected", "url": f"{queue_url}?status=approved",
+         "alert": False},
+        {"label": "Handed over today", "value": handed_over_today, "icon": "bi-bag-check",
+         "hint": "Completed handovers", "url": f"{queue_url}?status=closed",
+         "alert": False},
+    ]
+
 
 @login_required
 @profile_completed_required
@@ -115,30 +192,57 @@ def review_queue(request):
     query = request.GET.get("q", "").strip()
     claims = _claims_queryset()
 
-    if status == "active":
-        claims = claims.filter(status__in=services.ACTIVE_STATUSES)
-    elif status == "approved":
-        claims = claims.filter(status=Claim.Status.APPROVED)
-    elif status == "closed":
-        claims = claims.filter(status__in=[
-            Claim.Status.REJECTED,
-            Claim.Status.COMPLETED,
-            Claim.Status.CANCELLED,
-        ])
-
     if query:
         claims = claims.filter(
             Q(found_item__title__icontains=query)
             | Q(claimant__email__icontains=query)
         )
 
+    # Tab counts reflect the search, like the item lists.
+    counts = claims.aggregate(
+        active=Count("id", filter=Q(status__in=services.ACTIVE_STATUSES)),
+        approved=Count("id", filter=Q(status=Claim.Status.APPROVED)),
+        closed=Count("id", filter=Q(status__in=CLOSED_STATUSES)),
+        all=Count("id"),
+    )
+
+    # Work queues are handled oldest first; history newest first.
+    if status == "active":
+        claims = claims.filter(
+            status__in=services.ACTIVE_STATUSES
+        ).order_by("submitted_at")
+    elif status == "approved":
+        claims = claims.filter(status=Claim.Status.APPROVED).order_by("updated_at")
+    elif status == "closed":
+        claims = claims.filter(status__in=CLOSED_STATUSES).order_by("-updated_at")
+
     page_obj = Paginator(claims, 20).get_page(request.GET.get("page"))
+
+    scores = _claimant_match_scores(page_obj.object_list)
+    for claim in page_obj.object_list:
+        # Approved claims wait for handover from the moment of approval.
+        waiting_since = (
+            claim.updated_at if claim.status == Claim.Status.APPROVED
+            else claim.submitted_at
+        )
+        claim.waiting_since = waiting_since
+        claim.urgency = (
+            _wait_urgency(waiting_since)
+            if claim.status in (*services.ACTIVE_STATUSES, Claim.Status.APPROVED)
+            else None
+        )
+        claim.match_score = scores.get((claim.found_item_id, claim.claimant_id))
 
     return render(request, "claims/review_queue.html", {
         "page_obj": page_obj,
         "claims": page_obj.object_list,
         "selected_status": status,
         "status_filters": REVIEW_FILTERS,
+        "filter_tabs": [
+            (value, label, counts[value]) for value, label in REVIEW_FILTERS
+        ],
+        "counts": counts,
+        "header_stats": _queue_header_stats(),
         "query": query,
     })
 

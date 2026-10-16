@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load static %}
+{% load static assets %}
 
 {% block title %}Dashboard{% endblock %}
 
@@ -292,7 +292,7 @@
 
 {% block extra_js %}
 <script src="{% static 'vendor/chartjs/chart.umd.min.js' %}"></script>
-<script src="{% static 'js/dashboard.js' %}"
+<script src="{% asset 'js/dashboard.js' %}"
         data-metrics-url="{% url 'dashboard_metrics' %}"
         data-refresh-seconds="30"></script>
 {% endblock %}

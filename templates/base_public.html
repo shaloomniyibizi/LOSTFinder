@@ -1,4 +1,4 @@
-{% load static %}
+{% load static assets %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -9,7 +9,7 @@
     {# adminlte.min.css bundles Bootstrap 5.3 #}
     <link href="{% static 'vendor/adminlte/css/adminlte.min.css' %}" rel="stylesheet">
     <link href="{% static 'vendor/bootstrap-icons/bootstrap-icons.min.css' %}" rel="stylesheet">
-    <link href="{% static 'css/app.css' %}" rel="stylesheet">
+    <link href="{% asset 'css/app.css' %}" rel="stylesheet">
     {% block extra_head %}{% endblock %}
 </head>
 <body class="layout-fixed fixed-header bg-body-tertiary lf-guest">
@@ -81,7 +81,7 @@
 <script src="{% static 'vendor/adminlte/js/adminlte.min.js' %}"></script>
 {% if not request.user.is_authenticated %}
     {% include "accounts/_auth_modals.html" %}
-    <script src="{% static 'js/auth-modals.js' %}"></script>
+    <script src="{% asset 'js/auth-modals.js' %}"></script>
 {% endif %}
 {% block extra_js %}{% endblock %}
 </body>

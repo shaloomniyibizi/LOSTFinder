@@ -208,3 +208,118 @@ class NotificationPageTests(PageTestCase):
             self.client.get(reverse("notification_list"), {"show": "unread"}),
             "No unread notifications",
         )
+
+
+class ReviewQueuePageTests(PageTestCase):
+    def claim_for(self, name, days_ago=0, title=None):
+        """A claim by a new user, submitted `days_ago` days ago."""
+        item = self.found
+        if title:
+            item = FoundItem.objects.create(
+                reporter=self.finder, category=self.category, title=title,
+                description="Something", location="Gym", date_found=timezone.localdate(),
+            )
+        claim = services.submit_claim(item, make_user(name), EVIDENCE)
+        Claim.objects.filter(pk=claim.pk).update(
+            submitted_at=timezone.now() - timedelta(days=days_ago)
+        )
+        claim.refresh_from_db()
+        return claim
+
+    def get(self, **params):
+        self.client.force_login(self.officer)
+        return self.client.get(reverse("review_queue"), params)
+
+    def test_tabs_counts_and_oldest_first(self):
+        newer = self.claim_for("newer", days_ago=0)
+        older = self.claim_for("older", days_ago=2)
+        approved = self.claim_for("winner", days_ago=1, title="Umbrella")
+        services.review_claim(approved, self.officer, Claim.Status.APPROVED)
+
+        response = self.get()
+
+        tabs = {value: count for value, _, count in response.context["filter_tabs"]}
+        self.assertEqual(tabs, {"active": 2, "approved": 1, "closed": 0, "all": 3})
+        self.assertEqual(list(response.context["claims"]), [older, newer])
+        for text in ("Claim review queue", "Review claim", "lf-queue-card",
+                     "lf-hero-security", "Open dashboard"):
+            self.assertContains(response, text)
+
+    def test_waiting_badges_reflect_age(self):
+        self.claim_for("fresh", days_ago=0)
+        self.claim_for("day2", days_ago=2, title="Umbrella")
+        self.claim_for("day4", days_ago=4, title="Scarf")
+
+        claims = self.get().context["claims"]
+
+        self.assertEqual([c.urgency for c in claims], ["overdue", "due", "ok"])
+
+    def test_claimant_match_score_shown(self):
+        match_lost_item(self.lost)            # owner's lost report matches self.found
+        services.submit_claim(self.found, self.owner, EVIDENCE)
+
+        response = self.get()
+
+        score = MatchSuggestion.objects.get(lost_item=self.lost, found_item=self.found).score
+        self.assertEqual(response.context["claims"][0].match_score, score)
+        self.assertContains(response, f"{score}% match with their lost report")
+
+    def test_awaiting_handover_tab(self):
+        claim = self.claim_for("winner")
+        services.review_claim(claim, self.officer, Claim.Status.APPROVED)
+
+        response = self.get(status="approved")
+
+        for text in ("Awaiting handover", "lf-hero-handover", "Before handing an item over",
+                     "Record handover", reverse("claim_handover", args=[claim.pk])):
+            self.assertContains(response, text)
+        self.assertNotContains(response, "Review claim")
+
+    def test_evidence_preview_for_reviewers(self):
+        self.claim_for("someone")
+
+        self.assertContains(self.get(), "Serial number C02XK1")
+
+    def test_search_filters_cards_and_counts(self):
+        self.claim_for("alice", title="Umbrella")
+        self.claim_for("bob", title="Scarf")
+
+        response = self.get(q="umbr")
+
+        self.assertEqual([c.found_item.title for c in response.context["claims"]], ["Umbrella"])
+        self.assertEqual(response.context["counts"]["active"], 1)
+        self.assertContains(response, "Clear search")
+
+    def test_empty_states(self):
+        self.assertContains(self.get(), "The queue is clear")
+        self.assertContains(self.get(status="approved"), "Nothing waiting for handover")
+        self.assertContains(self.get(q="zzz"), "No claims match")
+
+    def test_header_stats_cover_whole_queue(self):
+        self.claim_for("fresh", days_ago=0)
+        self.claim_for("stale", days_ago=4, title="Umbrella")
+        done = self.claim_for("winner", days_ago=1, title="Scarf")
+        services.review_claim(done, self.officer, Claim.Status.APPROVED)
+        handed = self.claim_for("collector", days_ago=1, title="Wallet")
+        services.review_claim(handed, self.officer, Claim.Status.APPROVED)
+        services.record_handover(handed, self.officer, "Security office",
+                                 timezone.now() - timedelta(minutes=5))
+
+        response = self.get(q="nothing-matches-this")   # stats ignore the search
+
+        stats = {s["label"]: s for s in response.context["header_stats"]}
+        self.assertEqual(stats["To review"]["value"], 2)
+        self.assertEqual(stats["Overdue"]["value"], 1)
+        self.assertTrue(stats["Overdue"]["alert"])
+        self.assertEqual(stats["To hand over"]["value"], 1)
+        self.assertEqual(stats["Handed over today"]["value"], 1)
+        self.assertEqual(stats["To hand over"]["url"], reverse("review_queue") + "?status=approved")
+        self.assertContains(response, "lf-hero-stat is-alert")
+
+    def test_no_overdue_alert_when_queue_is_fresh(self):
+        self.claim_for("fresh", days_ago=0)
+
+        stats = {s["label"]: s for s in self.get().context["header_stats"]}
+
+        self.assertEqual(stats["Overdue"]["value"], 0)
+        self.assertFalse(stats["Overdue"]["alert"])

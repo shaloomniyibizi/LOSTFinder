@@ -219,7 +219,9 @@
 
 /* ---------- Lost / found report form ---------- */
 
-.lf-form-hero { color: #fff; }
+/* White text needs a dark ground. The variant classes below add the
+   gradient; this fallback keeps the text readable if one is missing. */
+.lf-form-hero { color: #fff; background-color: #0f1d3a; }
 .lf-form-hero-lost { background: linear-gradient(135deg, #8a3b0a, #c4650f); }
 .lf-form-hero-found { background: linear-gradient(135deg, #0f1d3a, #1f5fbf); }
 
@@ -486,3 +488,76 @@ html { scroll-padding-top: 4.5rem; }
 /* Notifications */
 .lf-notification { padding-top: .85rem; padding-bottom: .85rem; }
 .lf-notification.is-unread { background: rgba(var(--bs-primary-rgb), .05); box-shadow: inset 3px 0 0 var(--bs-primary); }
+
+/* ---------- Review queue & awaiting handover ---------- */
+
+.lf-hero-security { background: linear-gradient(135deg, #0b2a2a, #11645c); color: #fff; }
+.lf-hero-handover { background: linear-gradient(135deg, #0c3b24, #18804a); color: #fff; }
+
+.lf-queue-card { transition: box-shadow .15s, transform .15s; }
+.lf-queue-card:hover { transform: translateY(-1px); box-shadow: var(--bs-box-shadow) !important; }
+
+/* Waiting time: colour plus an icon and words, never colour alone. */
+.lf-wait { font-weight: 500; }
+.lf-wait-ok { background: var(--bs-secondary-bg-subtle); color: var(--bs-secondary-text-emphasis); }
+.lf-wait-due { background: var(--bs-warning-bg-subtle); color: var(--bs-warning-text-emphasis); }
+.lf-wait-overdue { background: var(--bs-danger-bg-subtle); color: var(--bs-danger-text-emphasis); }
+
+.lf-wait-dot {
+    display: inline-block;
+    width: .6rem;
+    height: .6rem;
+    border-radius: 50%;
+    vertical-align: middle;
+    margin-right: .2rem;
+}
+.lf-wait-dot.lf-wait-ok { background: var(--bs-secondary-color); }
+.lf-wait-dot.lf-wait-due { background: var(--bs-warning); }
+.lf-wait-dot.lf-wait-overdue { background: var(--bs-danger); }
+
+.lf-evidence {
+    padding: .5rem .75rem;
+    border-radius: var(--bs-border-radius);
+    background: var(--bs-tertiary-bg);
+    color: var(--bs-body-color);
+    border-left: 3px solid var(--bs-border-color);
+}
+
+/* Review queue header stat tiles (on the coloured hero) */
+.lf-hero-stat {
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+    height: 100%;
+    padding: .75rem .9rem;
+    border-radius: var(--bs-border-radius-lg);
+    background: rgba(255, 255, 255, .1);
+    border: 1px solid rgba(255, 255, 255, .16);
+    color: #fff;
+    text-decoration: none;
+    transition: background-color .15s, transform .15s;
+}
+.lf-hero-stat:hover,
+.lf-hero-stat:focus-visible { background: rgba(255, 255, 255, .18); color: #fff; transform: translateY(-1px); }
+.lf-hero-stat-icon {
+    flex-shrink: 0;
+    display: grid;
+    place-items: center;
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, .16);
+    font-size: 1.15rem;
+}
+.lf-hero-stat-value {
+    display: block;
+    font-size: 1.6rem;
+    font-weight: 700;
+    line-height: 1.1;
+    font-variant-numeric: tabular-nums;
+}
+.lf-hero-stat-label { display: block; font-weight: 600; font-size: .85rem; }
+.lf-hero-stat-hint { display: block; font-size: .72rem; opacity: .75; }
+/* Overdue claims: amber-on-dark tile, plus a warning icon and the word "Overdue". */
+.lf-hero-stat.is-alert { background: rgba(255, 193, 7, .2); border-color: rgba(255, 193, 7, .55); }
+.lf-hero-stat.is-alert .lf-hero-stat-icon { background: #ffc107; color: #3d2c00; }

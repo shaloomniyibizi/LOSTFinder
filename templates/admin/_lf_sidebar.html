@@ -1,0 +1,66 @@
+{% load i18n admin_ui %}
+{% comment %}
+AdminLTE sidebar for the Django admin: every app and model the user can see
+(available_apps comes from AdminSite.each_context), plus a way back to the app.
+{% endcomment %}
+{% url 'admin:index' as admin_index %}
+<aside class="app-sidebar bg-body-secondary shadow" data-bs-theme="dark">
+    <div class="sidebar-brand">
+        <a href="{{ admin_index }}" class="brand-link">
+            <span class="brand-image lf-brand-mark">LF</span>
+            <span class="brand-text fw-semibold">LOSTFinder <small class="fw-normal opacity-75">admin</small></span>
+        </a>
+    </div>
+
+    <div class="sidebar-wrapper">
+        <nav class="mt-2" aria-label="{% translate 'Administration' %}">
+            <ul class="nav sidebar-menu flex-column" data-lte-toggle="treeview" role="navigation" data-accordion="false">
+                <li class="nav-item">
+                    <a href="{{ admin_index }}" class="nav-link {% if request.path == admin_index %}active{% endif %}">
+                        <i class="nav-icon bi bi-grid-1x2"></i>
+                        <p>{% translate 'Admin home' %}</p>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="{% url 'dashboard' %}" class="nav-link">
+                        <i class="nav-icon bi bi-arrow-left-circle"></i>
+                        <p>Back to LOSTFinder</p>
+                    </a>
+                </li>
+
+                {% for app in available_apps %}
+                    <li class="nav-header">{{ app.name|upper }}</li>
+                    {% for model in app.models %}
+                        <li class="nav-item">
+                            <a href="{% firstof model.admin_url model.add_url %}"
+                               class="nav-link {% if model.admin_url and model.admin_url in request.path %}active{% endif %}"
+                               {% if model.admin_url and model.admin_url in request.path %}aria-current="page"{% endif %}>
+                                <i class="nav-icon bi {{ model.object_name|admin_model_icon }}"></i>
+                                <p>{{ model.name }}</p>
+                            </a>
+                        </li>
+                    {% endfor %}
+                {% endfor %}
+
+                <li class="nav-header">{% translate 'ACCOUNT' %}</li>
+                {% if user.has_usable_password %}
+                    <li class="nav-item">
+                        {% url 'admin:password_change' as password_url %}
+                        <a href="{{ password_url }}" class="nav-link {% if request.path == password_url %}active{% endif %}">
+                            <i class="nav-icon bi bi-key"></i>
+                            <p>{% translate 'Change password' %}</p>
+                        </a>
+                    </li>
+                {% endif %}
+                {% if site_url %}
+                    <li class="nav-item">
+                        <a href="{{ site_url }}" class="nav-link">
+                            <i class="nav-icon bi bi-globe"></i>
+                            <p>{% translate 'View site' %}</p>
+                        </a>
+                    </li>
+                {% endif %}
+            </ul>
+        </nav>
+    </div>
+</aside>
