@@ -60,7 +60,7 @@ if os.environ.get("DB_ENGINE", "sqlite").lower() == "postgresql":
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.postgresql",
-            "NAME": os.environ.get("DB_NAME", "bmis"),
+            "NAME": os.environ.get("DB_NAME", "lostfinder"),
             "USER": os.environ.get("DB_USER", "postgres"),
             "PASSWORD": os.environ.get("DB_PASSWORD", ""),
             "HOST": os.environ.get("DB_HOST", "localhost"),
@@ -100,6 +100,8 @@ USE_TZ = True
 
 STATIC_URL = 'static/'
 STATICFILES_DIRS = [BASE_DIR / 'static']
+# Where `collectstatic` gathers files for a production web server.
+STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 
 MAILERS = {

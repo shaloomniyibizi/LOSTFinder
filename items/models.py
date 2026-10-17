@@ -108,6 +108,8 @@ class FoundItem(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
+        verbose_name = "Found Item"
+        verbose_name_plural = "Found Items"
         ordering = ["-created_at"]
         indexes = [
             models.Index(

@@ -61,6 +61,19 @@ class ItemFormPageTests(TestCase):
             self.assertContains(response, text)
         self.assertContains(response, f'max="{timezone.localdate().isoformat()}"')
 
+    def test_inactive_categories_hidden_except_current_one(self):
+        retired = ItemCategory.objects.create(name="Pagers", is_active=False)
+
+        self.assertNotContains(self.client.get(reverse("lost_item_create")), "Pagers")
+
+        item = LostItem.objects.create(
+            reporter=self.user, category=retired, title="Old pager",
+            description="Black pager", location="Gym",
+            date_lost=timezone.localdate(),
+        )
+        response = self.client.get(reverse("lost_item_update", args=[item.pk]))
+        self.assertContains(response, "Pagers")
+
     def test_found_form_layout(self):
         response = self.client.get(reverse("found_item_create"))
 

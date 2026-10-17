@@ -1,7 +1,7 @@
 from django import forms
 from django.core.validators import MaxLengthValidator
 from django.contrib.auth import get_user_model
-from django.contrib.auth.forms import AuthenticationForm, UserCreationForm
+from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.password_validation import validate_password
 from django.utils.text import slugify
 from .models import UserProfile
@@ -33,14 +33,14 @@ class RegistrationForm(UserCreationForm):
 
     password1 = forms.CharField(required=True, widget=forms.PasswordInput(attrs={
         "class": "form-control",
-        "placeholder": "Enter Your Password",
+        "placeholder": "Enter your password",
         "autocomplete": "new-password",
     }),
     )
     password2 = forms.CharField(
         widget=forms.PasswordInput(attrs={
             "class": "form-control",
-            "placeholder": "Comfirm Your Password",
+            "placeholder": "Confirm your password",
             "autocomplete": "new-password",
         }),
     )
@@ -75,26 +75,6 @@ class RegistrationForm(UserCreationForm):
             email=email,
             password=self.cleaned_data["password1"],
         )
-
-
-class EmailAuthenticationForm(AuthenticationForm):
-    username = forms.EmailField(
-        widget=forms.EmailInput(attrs={
-            "class": "form-control",
-            "placeholder": "Enter your email",
-            "autocomplete": "email",
-            "autofocus": True,
-        }),
-    )
-
-    password = forms.CharField(
-        strip=False,
-        widget=forms.PasswordInput(attrs={
-            "class": "form-control",
-            "placeholder": "Enter your password",
-            "autocomplete": "current-password",
-        }),
-    )
 
 
 class OnboardingForm(forms.ModelForm):

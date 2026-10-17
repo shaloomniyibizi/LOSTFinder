@@ -390,3 +390,20 @@ class OnboardingFormTests(TestCase):
         self.assertContains(response, "Academic details")
         self.assertContains(response, "bi-telephone")
         self.assertNotContains(response, 'name="user_type"')
+
+    def test_profile_edits_are_saved_and_keep_the_role(self):
+        officer = make_user("officer")
+        officer.profile.user_type = UserProfile.UserType.SECURITY
+        officer.profile.save()
+        self.client.force_login(officer)
+
+        # ONBOARDING_DATA posts user_type=student; non-staff cannot change it.
+        response = self.client.post(reverse("profile"), {
+            **ONBOARDING_DATA, "phone_number": "0799000111", "faculty": "Business",
+        })
+
+        self.assertRedirects(response, reverse("profile"))
+        officer.profile.refresh_from_db()
+        self.assertEqual(officer.profile.phone_number, "0799000111")
+        self.assertEqual(officer.profile.faculty, "Business")
+        self.assertEqual(officer.profile.user_type, UserProfile.UserType.SECURITY)

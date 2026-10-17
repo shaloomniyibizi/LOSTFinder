@@ -168,6 +168,49 @@ class SaveHookTests(MatchingTestCase):
         self.assertEqual(lost.status, LostItem.Status.OPEN)
 
 
+class AdminMatchingTests(MatchingTestCase):
+    """Reports saved or deleted in the Django admin keep matches in step."""
+
+    def setUp(self):
+        admin_user = get_user_model().objects.create_superuser(
+            "boss", "boss@uni.edu", "pw-12345!"
+        )
+        UserProfile.objects.create(user=admin_user, onboarding_completed=True)
+        self.client.force_login(admin_user)
+
+    def test_admin_save_generates_suggestions(self):
+        found = self.found()
+
+        response = self.client.post(reverse("admin:items_lostitem_add"), {
+            "reporter": self.owner.pk,
+            "category": self.electronics.pk,
+            "title": "Grey MacBook Pro laptop",
+            "description": "Grey laptop with blue sticker on the lid",
+            "location": "Main Library 2nd floor",
+            "date_lost": self.today.isoformat(),
+            "status": LostItem.Status.OPEN,
+        })
+
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(
+            MatchSuggestion.objects.filter(found_item=found).exists()
+        )
+
+    def test_admin_delete_reopens_lost_item(self):
+        lost = self.lost()
+        found = self.found()
+        match_lost_item(lost)
+
+        self.client.post(
+            reverse("admin:items_founditem_delete", args=[found.pk]),
+            {"post": "yes"},
+        )
+
+        self.assertFalse(FoundItem.objects.filter(pk=found.pk).exists())
+        lost.refresh_from_db()
+        self.assertEqual(lost.status, LostItem.Status.OPEN)
+
+
 class MatchPageTests(MatchingTestCase):
     def setUp(self):
         self.lost_item = self.lost()

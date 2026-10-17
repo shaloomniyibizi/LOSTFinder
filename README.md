@@ -97,7 +97,6 @@ or
 pip install -r requirements.txt
 ```
 
-
 ### 3. Create your `.env` file
 
 Settings such as the secret key and database credentials are read from a `.env` file in the project root. That file is git-ignored, so copy the template:
@@ -273,7 +272,7 @@ Each lost report is compared with found reports, and the pair gets a score out o
 | Description similarity | up to 15 |
 | Date proximity (same day 10, 1 day 8, ≤3 days 6, ≤7 days 3, ≤14 days 1) | up to 10 |
 
-Text similarity combines shared words with overall text similarity. A pair is suggested only if it scores **35 or more**. A person's own lost and found reports are never matched with each other. Matching runs automatically whenever a report is created or edited. Your accept and reject decisions are kept when scores are recalculated.
+Text similarity combines shared words with overall text similarity. A pair is suggested only if it scores **35 or more**. A person's own lost and found reports are never matched with each other. Matching runs automatically whenever a report is created or edited, in the app or in the Django admin. Your accept and reject decisions are kept when scores are recalculated.
 
 A found item with a pending claim can still be matched, because the claimant might not be the real owner. Once a claim is approved, its remaining pending suggestions are removed.
 
@@ -300,7 +299,7 @@ All settings come from `.env` (see `.env.example`):
 | `SECRET_KEY` | *(none, required)* | Django's cryptographic key. The app will not start without it. |
 | `DEBUG` | `False` | Set to `True` for local development. Must be `False` in production. |
 | `DB_ENGINE` | `sqlite` | `sqlite` uses `db.sqlite3` in the project root; `postgresql` uses the settings below. |
-| `DB_NAME` | `bmis` | PostgreSQL database name. **Set this explicitly**, because the default is not specific to this project. |
+| `DB_NAME` | `lostfinder` | PostgreSQL database name |
 | `DB_USER` | `postgres` | PostgreSQL user |
 | `DB_PASSWORD` | *(empty)* | PostgreSQL password |
 | `DB_HOST` | `localhost` | PostgreSQL host |
@@ -314,7 +313,7 @@ All settings come from `.env` (see `.env.example`):
 
 - set `DEBUG=False`
 - add your domain to `ALLOWED_HOSTS` in `config/settings.py`
-- set `STATIC_ROOT` and run `python manage.py collectstatic`
+- run `python manage.py collectstatic`, which gathers static files into `staticfiles/`
 - serve `static/` and `media/` with your web server
 - use a fresh `SECRET_KEY`
 
@@ -326,7 +325,7 @@ All settings come from `.env` (see `.env.example`):
 | `python manage.py migrate` | Create or update the database tables |
 | `python manage.py createsuperuser` | Create an administrator account |
 | `python manage.py seed_demo` | Load demo users, 6 lost and 6 found items, matches and claims ([details](#7-load-demo-data-optional)). Add `--reset` to re-create the data. |
-| `python manage.py run_matching` | Recalculate match suggestions for every open lost report. Run it after importing data, or after editing reports in the Django admin (admin edits do not trigger matching). |
+| `python manage.py run_matching` | Recalculate match suggestions for every open lost report. Run it after importing data straight into the database. |
 | `python manage.py test` | Run the test suite |
 
 ## Running the tests
@@ -335,10 +334,11 @@ All settings come from `.env` (see `.env.example`):
 python manage.py test
 ```
 
-86 tests cover:
+158 tests cover:
 
 - matching
-- the save hooks
+- the save hooks, in the app and the Django admin
+- the report forms and lists
 - the claim workflow and permissions
 - the onboarding gate
 - the role-based dashboards
@@ -411,12 +411,8 @@ LOSTFinder/
 | The category drop-down on the report form is empty | No categories yet. Add them in the admin ([first-time setup](#first-time-setup)). |
 | Every page sends me to the onboarding form | Your profile isn't complete yet. Fill in and save the onboarding form. |
 | `/claims/review/` shows *403 Forbidden* | Your account isn't a reviewer. An admin must set your user type to *Security Officer* or give you staff status. |
-| Reports edited in the admin have no matches | Admin edits don't trigger matching. Run `python manage.py run_matching`. |
 | `Error loading psycopg2` | You're using PostgreSQL without its driver. Run `pip install psycopg2-binary` (or `uv sync`). |
-| `requirements.txt` looks garbled in an editor | It is saved as UTF-16 (PowerShell's default for `pip freeze >`). pip still reads it. To convert it: `pip freeze \| Out-File -Encoding utf8 requirements.txt`. |
 
 ## Known issues
 
-- **Profile edits are not saved.** The *My profile* page shows "updated successfully" but doesn't save your changes. The cause is `profile_view` in `accounts/views.py`, which calls `form.save(commit=False)` and never saves the result. Changes made during onboarding *are* saved.
 - **Notifications are in-app only.** No emails are sent yet.
-- **Admin edits skip matching** (see [Management commands](#management-commands)).

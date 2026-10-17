@@ -1,15 +1,13 @@
 from django.shortcuts import redirect, render, resolve_url
-from django.contrib.auth import authenticate, get_user_model, login, logout
+from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.http import JsonResponse
 from django.template.loader import render_to_string
 from django.utils.http import url_has_allowed_host_and_scheme
-from .forms import RegistrationForm, OnboardingForm, EmailAuthenticationForm
+from .forms import RegistrationForm, OnboardingForm
 
 from .models import UserProfile
-
-user = get_user_model()
 
 LOGIN_ERROR = "Invalid email address or password."
 
@@ -83,7 +81,6 @@ def login_view(request):
         user = authenticate(request, email=email, password=password)
 
         if user is not None:
-            # login(request, user, backend='accounts.backends.EmailBackend')
             login(request, user)
 
             profile, _ = UserProfile.objects.get_or_create(user=user)
@@ -141,7 +138,7 @@ def profile_view(request):
             allow_role=request.user.is_staff,
         )
         if form.is_valid():
-            form.save(commit=False)
+            form.save()
 
             messages.success(
                 request, "Your profile has been updated successfully.")

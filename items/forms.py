@@ -1,5 +1,6 @@
 
 from django import forms
+from django.db.models import Q
 from django.utils import timezone
 
 from .models import LostItem, FoundItem
@@ -54,7 +55,12 @@ class ItemFormMixin:
         self.fields[self.date_field].widget.attrs["max"] = (
             timezone.localdate().isoformat()
         )
-        self.fields["category"].empty_label = "Choose a category"
+        category = self.fields["category"]
+        category.empty_label = "Choose a category"
+        # Hide retired categories, but keep the one an edited report uses.
+        category.queryset = category.queryset.filter(
+            Q(is_active=True) | Q(pk=self.instance.category_id)
+        )
 
     def clean_image(self):
         image = self.cleaned_data.get("image")

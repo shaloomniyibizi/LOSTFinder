@@ -1,5 +1,6 @@
 
 from django.contrib import admin
+from .matching import match_found_item, match_lost_item, sync_lost_item_status
 from .models import (
     ItemCategory,
     LostItem,
@@ -30,6 +31,11 @@ class LostItemAdmin(admin.ModelAdmin):
     date_hierarchy = "date_lost"
     list_select_related = ("reporter", "category")
 
+    def save_model(self, request, obj, form, change):
+        super().save_model(request, obj, form, change)
+        # The app's views match on save; admin edits must do the same.
+        match_lost_item(obj)
+
 
 @admin.register(FoundItem)
 class FoundItemAdmin(admin.ModelAdmin):
@@ -45,6 +51,26 @@ class FoundItemAdmin(admin.ModelAdmin):
     readonly_fields = ("created_at", "updated_at")
     date_hierarchy = "date_found"
     list_select_related = ("reporter", "category")
+
+    def save_model(self, request, obj, form, change):
+        super().save_model(request, obj, form, change)
+        match_found_item(obj)
+
+    # Deleting a found item cascades to its suggestions, so the lost items
+    # it matched may no longer have a match (as in items.views.delete_item).
+    def delete_model(self, request, obj):
+        affected = list(LostItem.objects.filter(match_suggestions__found_item=obj))
+        super().delete_model(request, obj)
+        for lost_item in affected:
+            sync_lost_item_status(lost_item)
+
+    def delete_queryset(self, request, queryset):
+        affected = list(
+            LostItem.objects.filter(match_suggestions__found_item__in=queryset).distinct()
+        )
+        super().delete_queryset(request, queryset)
+        for lost_item in affected:
+            sync_lost_item_status(lost_item)
 
 
 @admin.register(MatchSuggestion)
