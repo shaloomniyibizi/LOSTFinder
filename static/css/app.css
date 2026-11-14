@@ -617,3 +617,5 @@ html { scroll-padding-top: 4.5rem; }
 .lf-cm td.is-diagonal { font-weight: 700; background: var(--bs-success-bg-subtle); }
 .lf-feature-bar { flex: 0 0 6rem; }
 .lf-feature-value { width: 3.5rem; text-align: end; }
+/* Let the five stat tiles share one row: truncated hints must not set a min width. */
+.lf-ml .row > [class*="col"] { min-width: 0; }
