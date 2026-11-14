@@ -18,6 +18,7 @@ A campus lost-and-found web app built with Django. Students and staff report ite
 - [Running the tests](#running-the-tests)
 - [Project structure](#project-structure)
 - [Pages and URLs](#pages-and-urls)
+- [REST API](#rest-api)
 - [Troubleshooting](#troubleshooting)
 - [Known issues](#known-issues)
 
@@ -31,13 +32,15 @@ A campus lost-and-found web app built with Django. Students and staff report ite
 - **Role-based dashboard** built with AdminLTE: summary cards, live-updating charts, and recent-record tables, plus a claim queue for security staff.
 - **Notifications** inside the app, with an unread count in the header.
 - **Light, dark, and auto themes**, remembered in your browser.
-- **Works offline from a CDN:** AdminLTE, Bootstrap, Bootstrap Icons, and Chart.js are bundled in `static/vendor/`.
+- **REST API** (`/api/v1/`) covering everything the pages do, for mobile apps or other front ends, with interactive Swagger docs at `/api/docs/`. See [REST API](#rest-api).
+- **Works offline from a CDN:** AdminLTE, Bootstrap, Bootstrap Icons, and Chart.js are bundled in `static/vendor/`, and Swagger UI comes from the installed `drf-spectacular-sidecar` package.
 
 ## Tech stack
 
 | Part | Technology |
 | --- | --- |
 | Backend | Python 3.14, Django 6.1 |
+| API | Django REST Framework 3.18, drf-spectacular 0.30 (OpenAPI 3, Swagger UI) |
 | Database | SQLite (default) or PostgreSQL |
 | UI | AdminLTE 4.9.1 (Bootstrap 5.3.8), Bootstrap Icons 1.13.1 |
 | Charts | Chart.js 4.5.1 |
@@ -334,7 +337,7 @@ All settings come from `.env` (see `.env.example`):
 python manage.py test
 ```
 
-158 tests cover:
+187 tests cover:
 
 - matching
 - the save hooks, in the app and the Django admin
@@ -346,6 +349,7 @@ python manage.py test
 - the bundled static assets
 - the theme toggle
 - the demo seed command
+- the REST API: authentication, onboarding, permissions, privacy rules, the claim workflow, and the OpenAPI schema (`python manage.py test api`)
 
 They create a temporary test database, so your data is not touched. With PostgreSQL, the database user needs permission to create databases.
 
@@ -361,10 +365,11 @@ djlint templates --reformat
 ```text
 LOSTFinder/
 ├── accounts/        Registration, email login, onboarding, profiles, role checks (decorators.py)
-├── items/           Lost/found reports, matching engine (matching.py), match pages
+├── items/           Lost/found reports, matching engine (matching.py), report services (services.py), match pages
 │   └── management/commands/   run_matching.py, seed_demo.py
 ├── claims/          Claims workflow (services.py), review queue, handovers, notifications
 ├── dashboard/       Public home page, role-based dashboard, metrics (metrics.py)
+├── api/             REST API: serializers, viewsets, permissions, URLs (/api/)
 ├── config/          Django settings and root URLs
 ├── templates/
 │   ├── base.html          Signed-in layout (AdminLTE with sidebar)
@@ -400,6 +405,74 @@ LOSTFinder/
 | `/claims/review/` | Claim review queue | Security officers and staff |
 | `/claims/notifications/` | Notifications | Signed in |
 | `/admin/` | Django admin | Staff |
+| `/api/v1/` | REST API (see below) | API clients |
+| `/api/docs/`, `/api/schema/` | Swagger UI, OpenAPI schema | Anyone |
+
+## REST API
+
+LOSTFinder is API-driven: the web pages and the REST API are two front doors to the same service layer, so both apply exactly the same rules.
+
+```text
+ Browser pages (templates)        Mobile app / SPA / scripts
+          │                                  │
+   Django views (items/, claims/)     REST API (api/, /api/v1/)
+          └──────────────┬───────────────────┘
+                 Service layer
+   items/services.py · items/matching.py · claims/services.py · dashboard/metrics.py
+                         │
+                  Models / database
+```
+
+Neither front door changes records itself. Matching, claim status changes, review logs, notifications and handovers all happen in the service functions.
+
+### Interactive documentation
+
+With the server running, open <http://127.0.0.1:8000/api/docs/>. Every endpoint, parameter and response is listed there, and you can try requests from the page. The raw OpenAPI 3 schema is at `/api/schema/`. To save it to a file, run `python manage.py spectacular --file schema.yml`.
+
+### Authentication
+
+- **Browser:** if you are signed in to the site, the API uses your session. Write requests (`POST`, `PATCH`, `DELETE`) need the CSRF token, as forms do.
+- **Other clients:** get a token, then send it in the `Authorization` header with every request.
+
+```bash
+# Get a token (or create an account with POST /api/v1/auth/register/)
+curl -X POST http://127.0.0.1:8000/api/v1/auth/token/ \
+     -H "Content-Type: application/json" \
+     -d '{"email": "amina@lostfinder.test", "password": "Demo-Pass-2026!"}'
+
+# Use it
+curl http://127.0.0.1:8000/api/v1/matches/ -H "Authorization: Token <token>"
+```
+
+New accounts must complete onboarding before using the other endpoints, as on the website: send `PATCH /api/v1/me/` with the profile fields. Until then, the other endpoints answer `403`.
+
+### Endpoints
+
+All paths start with `/api/v1/`. Lists are paginated: 12 per page, `?page=N`, with `count`, `next`, `previous` and `results` in the response.
+
+| Method and path | What it does | Who |
+| --- | --- | --- |
+| `POST auth/register/` | Create an account (`email`, `password`, `password_confirm`); returns a token | Anyone |
+| `POST auth/token/` | Exchange email and password for a token | Anyone |
+| `POST auth/logout/` | Revoke the token (or end the session) | Signed in |
+| `GET`, `PATCH`, `PUT me/` | Your account and profile; `PATCH` completes onboarding. Accepts `multipart/form-data` for `profile_photo` | Signed in |
+| `GET categories/` | Active item categories | Onboarded |
+| `GET`, `POST lost-items/`, `found-items/` | List (filters: `q`, `category`, `status`, `mine=true`) or create a report. Creating runs matching and returns `matches_found`. Photos via `multipart/form-data` | Onboarded |
+| `GET`, `PATCH`, `PUT`, `DELETE lost-items/{id}/`, `found-items/{id}/` | One report. Only its reporter can change or delete it. Deleting a found item that has claims answers `409` | Onboarded |
+| `GET lost-items/{id}/matches/`, `found-items/{id}/matches/` | Live match suggestions for a report (empty unless it is yours) | Onboarded |
+| `GET matches/` | Matches involving your reports (`status`: `active` (default), `pending`, `accepted`, `rejected`, `all`; `side`: `lost` or `found`) | Onboarded |
+| `POST matches/{id}/decision/` | `{"action": "accept" \| "reject" \| "reset"}` | Owner of the lost item |
+| `GET claims/` | `scope=mine` (default), `scope=found` (claims on items you turned in) or `scope=review` (review queue: `status=active\|approved\|closed\|all`, `q`) | Onboarded; `review` for reviewers |
+| `POST claims/` | Claim a found item: `{"found_item": id, "evidence_description": "..."}` | Onboarded |
+| `GET claims/{id}/` | A claim with its timeline and handover. The finder never sees the evidence or the claimant's email | Claimant, finder, reviewers |
+| `POST claims/{id}/cancel/` | Cancel your claim | Claimant |
+| `POST claims/{id}/review/` | `{"decision": "under_review" \| "approved" \| "rejected", "comments": "..."}` | Security officers and staff |
+| `POST claims/{id}/handover/` | `{"handover_location": "...", "handed_over_at": "<ISO datetime, optional>", "notes": "..."}` | Security officers and staff |
+| `GET notifications/` | Your notifications (`unread=true` for unread only) | Signed in |
+| `POST notifications/{id}/read/`, `notifications/read-all/` | Mark one, or all, as read | Signed in |
+| `GET dashboard/` | Dashboard card values and chart series for your role | Onboarded |
+
+Errors use the usual HTTP status codes: `400` for invalid input or a step the workflow doesn't allow, with the reason in the body; `401` when not signed in; `403` when not allowed; `404` when not found or not visible to you; `409` for conflicts.
 
 ## Troubleshooting
 
