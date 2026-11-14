@@ -14,9 +14,16 @@ from .models import FoundItem, LostItem, MatchSuggestion
 
 
 def run_matching(item):
-    """Refresh match suggestions for a saved lost or found report."""
+    """
+    Refresh match suggestions for a saved lost or found report, and record
+    the category model's prediction for it.
+    """
+    from ml.services import record_category_prediction  # ml depends on items
+
     matcher = match_lost_item if isinstance(item, LostItem) else match_found_item
-    return matcher(item)
+    suggestions = matcher(item)
+    record_category_prediction(item)
+    return suggestions
 
 
 def delete_report(item):

@@ -1,0 +1,193 @@
+{% extends "base.html" %}
+{% load ml_tags %}
+
+{% block title %}AI models{% endblock %}
+{% block page_title %}AI models{% endblock %}
+
+{% block breadcrumbs %}
+    <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Dashboard</a></li>
+    <li class="breadcrumb-item active" aria-current="page">AI models</li>
+{% endblock %}
+
+{% block content %}
+{% include "claims/_messages.html" %}
+
+{% if not match and not category %}
+    <div class="card shadow-sm">
+        <div class="card-body text-center text-secondary py-5">
+            <span class="lf-empty-icon mb-2"><i class="bi bi-cpu"></i></span>
+            <p class="mb-1">No models have been trained yet.</p>
+            <p class="small mb-0">Run <code>python manage.py train_model --rescore</code>.</p>
+        </div>
+    </div>
+{% else %}
+
+{# ---------- Pipeline ---------- #}
+<div class="card shadow-sm mb-4">
+    <div class="card-header d-flex flex-wrap align-items-center gap-2">
+        <h3 class="card-title mb-0 me-auto"><i class="bi bi-diagram-3 me-1 text-primary"></i> How the models are built</h3>
+        {% if request.user.is_staff %}
+            <form method="post" action="{% url 'ml_retrain' %}">
+                {% csrf_token %}
+                <input type="hidden" name="next" value="{% url 'ml_model_report' %}">
+                <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-arrow-repeat me-1"></i>Retrain now</button>
+            </form>
+        {% endif %}
+    </div>
+    <div class="card-body">
+        <ol class="mb-3 small">
+            <li><strong>Read data from the API.</strong> <code>manage.py fetch_api_data</code> signs in to <code>/api/v1/auth/token/</code> and downloads every report and decided match from <code>/api/v1/ml/training-data/</code>.</li>
+            <li><strong>Add synthetic data.</strong> Real decided matches are few, so <code>ml/synthetic.py</code> simulates owners and finders describing the same objects in their own words, plus look-alike objects as negatives.</li>
+            <li><strong>Train and compare.</strong> <code>manage.py train_model</code> fits logistic regression and a random forest on 80% of the data, keeps the one with the better F1 on the other 20%, and compares it with the old rule-based score.</li>
+            <li><strong>Deploy.</strong> The model is saved to <code>ml/artifacts/</code>, loaded by Django, and scores every new report as it is saved (web form or API).</li>
+        </ol>
+        {% if snapshot %}
+            <p class="small text-secondary mb-0">
+                <i class="bi bi-cloud-download me-1"></i>Latest API snapshot: {{ snapshot.generated_at|slice:":19" }} UTC ·
+                {{ snapshot.lost_items|length }} lost, {{ snapshot.found_items|length }} found, {{ snapshot.matches|length }} decided matches.
+            </p>
+        {% else %}
+            <p class="small text-secondary mb-0"><i class="bi bi-info-circle me-1"></i>No API snapshot yet. The current models were trained on synthetic data only, or retrained from the dashboard.</p>
+        {% endif %}
+    </div>
+</div>
+
+{% if match %}
+<div class="row g-4 mb-4">
+    <div class="col-xl-8">
+        <div class="card shadow-sm h-100">
+            <div class="card-header">
+                <h3 class="card-title mb-0"><i class="bi bi-link-45deg me-1 text-primary"></i> Match model · {{ match.algorithm }}</h3>
+            </div>
+            <div class="card-body">
+                <p class="small text-secondary">
+                    Version <code>{{ match.version }}</code> · trained on {{ match.samples.train }} pairs, tested on {{ match.samples.test }}
+                    ({{ match.samples.real }} real from the API, {{ match.samples.synthetic }} synthetic;
+                    {{ match.samples.positive }} matches, {{ match.samples.negative }} non-matches).
+                </p>
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle">
+                        <thead>
+                            <tr>
+                                <th scope="col">Approach (same test set)</th>
+                                <th scope="col" class="text-end">Accuracy</th>
+                                <th scope="col" class="text-end">Precision</th>
+                                <th scope="col" class="text-end">Recall</th>
+                                <th scope="col" class="text-end">F1</th>
+                                <th scope="col" class="text-end">ROC AUC</th>
+                            </tr>
+                        </thead>
+                        <tbody class="lf-table-num">
+                            {% for row in comparison %}
+                                <tr {% if row.kept %}class="table-success"{% endif %}>
+                                    <td>{{ row.name }}{% if row.kept %} <span class="badge text-bg-success">deployed</span>{% endif %}</td>
+                                    <td class="text-end">{{ row.accuracy|pct }}</td>
+                                    <td class="text-end">{{ row.precision|pct }}</td>
+                                    <td class="text-end">{{ row.recall|pct }}</td>
+                                    <td class="text-end fw-semibold">{{ row.f1|pct }}</td>
+                                    <td class="text-end">{{ row.roc_auc|pct }}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <p class="small text-secondary mb-0">
+                    Precision: of the pairs flagged as matches, the share that really were. Recall: of the real matches, the share that were found.
+                    The rule-based engine finds almost every match but also flags many look-alikes; the model keeps the recall with far fewer false alarms.
+                </p>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-4">
+        <div class="card shadow-sm h-100">
+            <div class="card-header"><h3 class="card-title mb-0"><i class="bi bi-grid-3x3 me-1 text-primary"></i> Confusion matrix (test set)</h3></div>
+            <div class="card-body">
+                {% with cm=match.metrics.confusion_matrix %}
+                <table class="table table-bordered lf-cm mb-2">
+                    <thead><tr><th scope="col"></th><th scope="col" class="text-center">Predicted: no</th><th scope="col" class="text-center">Predicted: match</th></tr></thead>
+                    <tbody>
+                        <tr><th scope="row">Actual: no</th><td class="is-diagonal">{{ cm.0.0 }}</td><td>{{ cm.0.1 }}</td></tr>
+                        <tr><th scope="row">Actual: match</th><td>{{ cm.1.0 }}</td><td class="is-diagonal">{{ cm.1.1 }}</td></tr>
+                    </tbody>
+                </table>
+                {% endwith %}
+                <h4 class="h6 mt-3">Feature importance</h4>
+                <ul class="list-unstyled small mb-0">
+                    {% for f in match.feature_importances %}
+                        <li class="d-flex align-items-center gap-2 py-1">
+                            <span class="flex-grow-1">{{ f.label }}</span>
+                            <span class="lf-prob lf-feature-bar" aria-hidden="true"><span style="width: {{ f.importance|pct_number }}%"></span></span>
+                            <span class="lf-table-num lf-feature-value">{{ f.importance|pct }}</span>
+                        </li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% if category %}
+<div class="card shadow-sm mb-4">
+    <div class="card-header">
+        <h3 class="card-title mb-0"><i class="bi bi-tags me-1 text-primary"></i> Category model · {{ category.algorithm }}</h3>
+    </div>
+    <div class="card-body">
+        <p class="small text-secondary">
+            Version <code>{{ category.version }}</code> · accuracy <strong>{{ category.metrics.accuracy|pct }}</strong>,
+            macro F1 <strong>{{ category.metrics.f1_macro|pct }}</strong> on {{ category.samples.test }} test reports
+            ({{ category.samples.real }} real from the API, {{ category.samples.synthetic }} synthetic).
+            Rows are the true category, columns the predicted one.
+        </p>
+        <div class="table-responsive">
+            <table class="table table-sm table-bordered lf-cm small mb-0">
+                <thead>
+                    <tr>
+                        <th scope="col">True \ predicted</th>
+                        {% for row in category_rows %}<th scope="col" class="text-center">{{ row.name }}</th>{% endfor %}
+                        <th scope="col" class="text-end">F1</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in category_rows %}
+                        <tr>
+                            <th scope="row">{{ row.name }}</th>
+                            {% for cell in row.cells %}
+                                <td {% if forloop.counter0 == forloop.parentloop.counter0 %}class="is-diagonal"{% endif %}>{{ cell }}</td>
+                            {% endfor %}
+                            <td class="text-end">{{ row.f1|pct }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<div class="card shadow-sm">
+    <div class="card-header"><h3 class="card-title mb-0"><i class="bi bi-clock-history me-1 text-primary"></i> Training history</h3></div>
+    <div class="table-responsive">
+        <table class="table table-sm mb-0">
+            <thead>
+                <tr><th scope="col">Version</th><th scope="col">Algorithm</th><th scope="col">Trained</th><th scope="col" class="text-end">Samples</th><th scope="col" class="text-end">From API</th><th scope="col">Status</th></tr>
+            </thead>
+            <tbody class="lf-table-num">
+                {% for v in history %}
+                    <tr>
+                        <td><code>{{ v.version }}</code></td>
+                        <td>{{ v.algorithm }}</td>
+                        <td>{{ v.trained_at|date:"M j, Y H:i" }}</td>
+                        <td class="text-end">{{ v.n_train|add:v.n_test }}</td>
+                        <td class="text-end">{{ v.n_real }}</td>
+                        <td>{% if v.is_active %}<span class="badge text-bg-success">active</span>{% else %}<span class="badge text-bg-secondary">retired</span>{% endif %}</td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="6" class="text-center text-secondary py-3">No training runs recorded in this database.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

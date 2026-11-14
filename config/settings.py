@@ -1,5 +1,6 @@
 from pathlib import Path
 import os
+import sys
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -28,6 +29,7 @@ INSTALLED_APPS = [
     'claims',
     'dashboard',
     'api',
+    'ml',
 ]
 
 MIDDLEWARE = [
@@ -172,3 +174,14 @@ SPECTACULAR_SETTINGS = {
         "ReviewDecisionEnum": "api.serializers.REVIEW_DECISIONS",
     },
 }
+
+
+# ---------- Machine learning (ml/) ----------
+# Trained models (joblib) and the training-data snapshot read from the API.
+ML_MODEL_DIR = BASE_DIR / "ml" / "artifacts"
+ML_DATA_DIR = BASE_DIR / "ml" / "data"
+# The test suite runs without the trained models, so existing tests check
+# the rule-based engine on its own; ml/tests.py switches them on.
+ML_ENABLED = os.getenv("ML_ENABLED", "True").lower() == "true" and "test" not in sys.argv[1:2]
+# Where `manage.py fetch_api_data` and `simulate_incoming` reach the API.
+LOSTFINDER_API_URL = os.getenv("LOSTFINDER_API_URL", "http://127.0.0.1:8000/api/v1/")

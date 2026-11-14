@@ -86,6 +86,12 @@
                             <p>Awaiting handover</p>
                         </a>
                     </li>
+                    <li class="nav-item">
+                        <a href="{% url 'ml_model_report' %}" class="nav-link {% if current == 'ml_model_report' %}active{% endif %}">
+                            <i class="nav-icon bi bi-cpu"></i>
+                            <p>AI models</p>
+                        </a>
+                    </li>
                 {% endif %}
 
                 {% if request.user.is_staff %}

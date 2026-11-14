@@ -135,6 +135,164 @@
         }),
     };
 
+    // AI insights charts exist only once a model has been trained.
+    const confidenceCanvas = document.getElementById("chart-ml-confidence");
+    if (confidenceCanvas) {
+        charts.ml_confidence = new Chart(confidenceCanvas, {
+            type: "bar",
+            data: {
+                labels: initial.charts.ml_confidence.labels,
+                datasets: [barDataset("Suggestions", initial.charts.ml_confidence.values)],
+            },
+            options: {
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: { x: categoryAxis(), y: integerAxis() },
+            },
+        });
+    }
+    const featuresCanvas = document.getElementById("chart-ml-features");
+    if (featuresCanvas) {
+        charts.ml_features = new Chart(featuresCanvas, {
+            type: "bar",
+            data: {
+                labels: initial.charts.ml_features.labels,
+                datasets: [barDataset("Importance (%)", initial.charts.ml_features.values)],
+            },
+            options: horizontalBarOptions(),
+        });
+    }
+
+    // ---------- AI insights lists ----------
+
+    // Builds elements with textContent only: report titles are user input.
+    function el(tag, className, text) {
+        const node = document.createElement(tag);
+        if (className) node.className = className;
+        if (text !== undefined && text !== null) node.textContent = text;
+        return node;
+    }
+
+    function emptyNote(text) {
+        return el("p", "small text-secondary mb-0", text);
+    }
+
+    const STATUS_BADGE = {
+        pending: "text-bg-warning",
+        accepted: "text-bg-success",
+        rejected: "text-bg-danger",
+    };
+
+    function renderLatest(rows) {
+        const host = document.querySelector("[data-ml-latest]");
+        if (!host) return;
+        if (!rows.length) {
+            host.replaceChildren(emptyNote("No predictions yet. They appear as new reports come in."));
+            return;
+        }
+        const list = el("div");
+        rows.forEach((row) => {
+            const line = el("div", "lf-ml-row");
+
+            const left = el("div", "min-w-0");
+            const link = el("a", "lf-ml-pair d-block fw-semibold text-reset text-decoration-none");
+            link.href = row.url;
+            link.title = `${row.lost} ↔ ${row.found}`;
+            link.textContent = `${row.lost} ↔ ${row.found}`;
+            left.appendChild(link);
+
+            const meta = el("div", "small text-secondary d-flex flex-wrap gap-1 align-items-center");
+            meta.appendChild(el("span", `badge ${STATUS_BADGE[row.status] || "text-bg-secondary"}`, row.status_display));
+            if (row.model_only) meta.appendChild(el("span", "badge text-bg-warning", "Model only"));
+            meta.appendChild(el("span", null, `Rule score ${row.rule_score}% · ${row.when} ago`));
+            left.appendChild(meta);
+
+            const right = el("div");
+            right.appendChild(el("div", "small fw-bold text-end lf-table-num", `${row.probability}%`));
+            const bar = el("div", "lf-prob");
+            bar.setAttribute("role", "img");
+            bar.setAttribute("aria-label", `Model probability ${row.probability}%`);
+            const fill = el("span");
+            fill.style.width = `${row.probability}%`;
+            bar.appendChild(fill);
+            right.appendChild(bar);
+
+            line.append(left, right);
+            list.appendChild(line);
+        });
+        host.replaceChildren(list);
+    }
+
+    function renderCategoryChecks(rows) {
+        const host = document.querySelector("[data-ml-categories]");
+        if (!host) return;
+        if (!rows.length) {
+            host.replaceChildren(emptyNote("No reports checked yet."));
+            return;
+        }
+        const list = el("ul", "list-unstyled mb-0");
+        rows.forEach((row) => {
+            const item = el("li", "d-flex gap-2 py-1 border-bottom");
+            const icon = el("i", row.agrees
+                ? "bi bi-check-circle-fill text-success"
+                : "bi bi-exclamation-triangle-fill text-warning");
+            icon.setAttribute("aria-hidden", "true");
+            const body = el("div", "min-w-0 small");
+            const link = el("a", "fw-semibold d-block text-truncate", row.title);
+            link.href = row.url;
+            body.appendChild(link);
+            body.appendChild(el("span", "text-secondary", row.agrees
+                ? `${row.reported} · model agrees (${row.confidence}%)`
+                : `Filed as ${row.reported}; model says ${row.predicted} (${row.confidence}%)`));
+            item.append(icon, body);
+            list.appendChild(item);
+        });
+        host.replaceChildren(list);
+    }
+
+    function renderModels(models) {
+        const host = document.querySelector("[data-ml-models]");
+        if (!host) return;
+        if (!models.length) {
+            host.replaceChildren(emptyNote("No models trained."));
+            return;
+        }
+        const wrap = el("div");
+        models.forEach((m) => {
+            const box = el("div", "lf-ml-model small border rounded p-2");
+            box.appendChild(el("div", "fw-semibold", m.label));
+            box.appendChild(el("div", "text-secondary mb-1", `${m.algorithm} · trained ${m.trained} ago`));
+            const dl = el("dl");
+            const add = (label, value) => {
+                dl.appendChild(el("dt", null, label));
+                dl.appendChild(el("dd", null, value));
+            };
+            add("Accuracy", m.accuracy);
+            add("F1", m.baseline_f1 ? `${m.f1} (rules: ${m.baseline_f1})` : m.f1);
+            if (m.auc) add("ROC AUC", m.auc);
+            add("Trained on", `${m.samples} samples (${m.real} from API)`);
+            box.appendChild(dl);
+            wrap.appendChild(box);
+        });
+        host.replaceChildren(wrap);
+    }
+
+    function renderInsights(data) {
+        if (!data.ml || !data.ml.enabled) return;
+        renderLatest(data.ml.latest);
+        renderCategoryChecks(data.ml.categories);
+        renderModels(data.ml.models);
+    }
+
+    const retrainForm = document.querySelector("[data-retrain-form]");
+    if (retrainForm) {
+        retrainForm.addEventListener("submit", () => {
+            const button = retrainForm.querySelector("button");
+            button.disabled = true;
+            button.querySelector("span").textContent = "Training…";
+        });
+    }
+
     // ---------- accessible table views ----------
 
     function renderTable(key, headers, rows) {
@@ -173,6 +331,17 @@
 
         const empty = document.querySelector('[data-empty-for="categories"]');
         if (empty) empty.classList.toggle("d-none", c.labels.length > 0);
+
+        const conf = data.charts.ml_confidence;
+        if (conf) {
+            renderTable("ml_confidence", ["Model probability", "Suggestions"],
+                conf.labels.map((label, i) => [label, conf.values[i]]));
+        }
+        const feat = data.charts.ml_features;
+        if (feat) {
+            renderTable("ml_features", ["Feature", "Importance (%)"],
+                feat.labels.map((label, i) => [label, feat.values[i]]));
+        }
     }
 
     // ---------- live refresh ----------
@@ -205,6 +374,13 @@
         charts.categories.data.labels = data.charts.categories.labels;
         charts.categories.data.datasets[0].data = data.charts.categories.values;
 
+        ["ml_confidence", "ml_features"].forEach((key) => {
+            if (charts[key] && data.charts[key]) {
+                charts[key].data.labels = data.charts[key].labels;
+                charts[key].data.datasets[0].data = data.charts[key].values;
+            }
+        });
+
         Object.values(charts).forEach((chart) => chart.update("none"));
     }
 
@@ -221,6 +397,7 @@
             updateMetrics(data.values);
             updateCharts(data);
             renderTables(data);
+            renderInsights(data);
             document.getElementById("lf-updated").textContent = data.generated_at;
         } catch (error) {
             console.warn("Dashboard refresh failed", error);
@@ -259,6 +436,7 @@
 
     applyTheme();
     renderTables(initial);
+    renderInsights(initial);
     setInterval(refresh, refreshMs);
     document.addEventListener("visibilitychange", () => {
         if (!document.hidden) refresh();

@@ -285,7 +285,7 @@ class MatchSerializer(serializers.ModelSerializer):
     class Meta:
         model = MatchSuggestion
         fields = [
-            "id", "score", "strength", "reason", "reasons", "status",
+            "id", "score", "ml_probability", "strength", "reason", "reasons", "status",
             "status_display", "lost_item", "found_item", "can_decide",
             "created_at",
         ]

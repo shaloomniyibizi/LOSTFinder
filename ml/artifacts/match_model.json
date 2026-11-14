@@ -1,0 +1,150 @@
+{
+  "kind": "match",
+  "version": "match-20261114-135425",
+  "trained_at": "2026-11-14T13:54:25.905980+00:00",
+  "algorithm": "Random forest",
+  "threshold": 0.5,
+  "feature_names": [
+    "same_category",
+    "title_similarity",
+    "description_similarity",
+    "location_similarity",
+    "full_text_similarity",
+    "keyword_overlap",
+    "shared_colours",
+    "colour_conflict",
+    "days_apart",
+    "found_before_lost"
+  ],
+  "feature_importances": [
+    {
+      "feature": "days_apart",
+      "label": "Days between reports",
+      "importance": 0.2074
+    },
+    {
+      "feature": "keyword_overlap",
+      "label": "Shared keywords",
+      "importance": 0.1845
+    },
+    {
+      "feature": "location_similarity",
+      "label": "Location similarity",
+      "importance": 0.1757
+    },
+    {
+      "feature": "colour_conflict",
+      "label": "Different colours",
+      "importance": 0.1306
+    },
+    {
+      "feature": "shared_colours",
+      "label": "Shared colours",
+      "importance": 0.125
+    },
+    {
+      "feature": "full_text_similarity",
+      "label": "Overall text similarity",
+      "importance": 0.0678
+    },
+    {
+      "feature": "description_similarity",
+      "label": "Description similarity",
+      "importance": 0.0657
+    },
+    {
+      "feature": "title_similarity",
+      "label": "Title similarity",
+      "importance": 0.0268
+    },
+    {
+      "feature": "found_before_lost",
+      "label": "Found before it was lost",
+      "importance": 0.0108
+    },
+    {
+      "feature": "same_category",
+      "label": "Same category",
+      "importance": 0.0058
+    }
+  ],
+  "metrics": {
+    "accuracy": 0.9211,
+    "precision": 0.8443,
+    "recall": 0.9369,
+    "f1": 0.8882,
+    "confusion_matrix": [
+      [
+        547,
+        52
+      ],
+      [
+        19,
+        282
+      ]
+    ],
+    "roc_auc": 0.9791
+  },
+  "compared": {
+    "Logistic regression": {
+      "accuracy": 0.9178,
+      "precision": 0.8271,
+      "recall": 0.9535,
+      "f1": 0.8858,
+      "confusion_matrix": [
+        [
+          539,
+          60
+        ],
+        [
+          14,
+          287
+        ]
+      ],
+      "roc_auc": 0.9763
+    },
+    "Random forest": {
+      "accuracy": 0.9211,
+      "precision": 0.8443,
+      "recall": 0.9369,
+      "f1": 0.8882,
+      "confusion_matrix": [
+        [
+          547,
+          52
+        ],
+        [
+          19,
+          282
+        ]
+      ],
+      "roc_auc": 0.9791
+    }
+  },
+  "baseline_rules": {
+    "accuracy": 0.6522,
+    "precision": 0.4899,
+    "recall": 0.9635,
+    "f1": 0.6495,
+    "confusion_matrix": [
+      [
+        297,
+        302
+      ],
+      [
+        11,
+        290
+      ]
+    ],
+    "roc_auc": 0.8837
+  },
+  "samples": {
+    "train": 3600,
+    "test": 900,
+    "real": 3,
+    "synthetic": 4497,
+    "positive": 1503,
+    "negative": 2997
+  },
+  "sklearn": "1.9.1"
+}

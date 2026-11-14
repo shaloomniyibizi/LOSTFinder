@@ -53,3 +53,8 @@ desktop.ini
 # Note: static/vendor/ (AdminLTE, Bootstrap, Chart.js, Bootstrap Icons) is
 # committed on purpose so the app works without a CDN. uv.lock and
 # requirements.txt are committed for reproducible installs.
+
+# ---------- Machine learning ----------
+# Snapshots downloaded by `manage.py fetch_api_data` (regenerate any time).
+# The trained models in ml/artifacts/ are committed so the app works after cloning.
+ml/data/*.json

@@ -12,6 +12,7 @@ A campus lost-and-found web app built with Django. Students and staff report ite
 - [Using LOSTFinder](#using-lostfinder)
 - [User roles](#user-roles)
 - [How matching works](#how-matching-works)
+- [Machine learning](#machine-learning)
 - [How claims work](#how-claims-work)
 - [Configuration](#configuration)
 - [Management commands](#management-commands)
@@ -27,6 +28,7 @@ A campus lost-and-found web app built with Django. Students and staff report ite
 - **Public home page** with a live feed of recent reports, campus statistics, search, and the busiest campus zones. Only visitors see it; signed-in users go straight to their dashboard.
 - **Accounts:** register and sign in with an email address, then complete a short onboarding profile before using the app.
 - **Lost and found reports** with a photo (up to 5 MB), category, location, and date. You can search and filter them, and only the person who reported an item can edit or delete it.
+- **Machine learning:** a trained match model scores every lost/found pair, a category model checks each new report, and the dashboard shows the predictions live. The training data comes from the app's own REST API plus synthetic data. See [Machine learning](#machine-learning).
 - **Automatic matching:** every time a report is saved, it is compared against the opposite type, and you are told how many possible matches were found.
 - **Claims workflow:** submit proof of ownership, security reviews it, then the handover is recorded. Every step is logged and notifies the people involved.
 - **Role-based dashboard** built with AdminLTE: summary cards, live-updating charts, and recent-record tables, plus a claim queue for security staff.
@@ -44,6 +46,7 @@ A campus lost-and-found web app built with Django. Students and staff report ite
 | Database | SQLite (default) or PostgreSQL |
 | UI | AdminLTE 4.9.1 (Bootstrap 5.3.8), Bootstrap Icons 1.13.1 |
 | Charts | Chart.js 4.5.1 |
+| Machine learning | scikit-learn 1.9, NumPy, joblib; requests (API client) |
 | Images | Pillow |
 | Config | python-dotenv (`.env` file) |
 | Template linting | djLint |
@@ -279,6 +282,62 @@ Text similarity combines shared words with overall text similarity. A pair is su
 
 A found item with a pending claim can still be matched, because the claimant might not be the real owner. Once a claim is approved, its remaining pending suggestions are removed.
 
+## Machine learning
+
+The `ml` app adds two trained models on top of the rule-based engine.
+
+| Model | Input | Output | Algorithm |
+| --- | --- | --- | --- |
+| **Match model** | 10 features of a lost/found pair: same category, title, description, location and overall text similarity, shared keywords, shared or conflicting colours, days apart, found-before-lost | Probability that both reports describe the same item | Logistic regression **and** random forest are trained; the one with the better F1 is kept |
+| **Category model** | Report title and description | Item category | TF-IDF (1–2 word n-grams) + logistic regression |
+
+### The pipeline
+
+```text
+REST API ──► fetch_api_data ──► ml/data/api_snapshot.json ─┐
+                                                           ├─► train_model ──► ml/artifacts/*.joblib
+ml/synthetic.py (simulated owners and finders) ────────────┘                          │
+                                                                                      ▼
+new report (web form or API) ──► run_matching ──► predictions saved ──► dashboard (live)
+```
+
+1. **Read data from the API.** `manage.py fetch_api_data` signs in at `POST /api/v1/auth/token/` and downloads every report and every accepted/rejected match from `GET /api/v1/ml/training-data/` (security staff and administrators only). Accepted matches are positive examples, rejected ones negative; every report is a labelled example for the category model.
+2. **Add synthetic data.** A campus produces only a handful of decided matches, so `ml/synthetic.py` simulates the process behind the data: an owner and a finder describe the same object in their own words (different nouns, a missing brand, a misjudged colour, a nearby spot, a delay of a few days, sometimes the wrong category), and look-alike objects (same kind, different colour, brand, place or time) are used as hard negatives. It is seeded, so every run is reproducible.
+3. **Train and evaluate.** `manage.py train_model` uses a stratified 80/20 split and reports accuracy, precision, recall, F1, ROC AUC and the confusion matrix. The old rule-based score (35 or more) is evaluated on the same test set as a baseline. A typical run gives:
+
+   | Approach | Precision | Recall | F1 | ROC AUC |
+   | --- | --- | --- | --- | --- |
+   | Rule-based engine (baseline) | 0.49 | 0.96 | 0.65 | 0.88 |
+   | Logistic regression | 0.83 | 0.95 | 0.89 | 0.98 |
+   | Random forest | 0.84 | 0.94 | 0.89 | 0.98 |
+
+   The rules find almost every match but also flag many look-alikes; the model keeps the recall with far fewer false alarms. The category model reaches about 92% accuracy.
+4. **Deploy in Django.** Models are saved with joblib in `ml/artifacts/` (with a `.json` summary) and recorded as `ModelVersion` rows. `ml/predictor.py` loads them once per process and reloads automatically when the file changes, so a retrain needs no restart.
+5. **Predict on new data.** Every time a report is saved, from the web form or the API, matching scores all candidate pairs with the model in one batch and stores the probability on each suggestion (`MatchSuggestion.ml_probability`). A pair the rules score too low is still suggested when the model is at least **60%** sure. The category model's guess is stored as a `CategoryPrediction`, which flags reports that may be filed under the wrong category.
+
+If no model file exists, or `ML_ENABLED=False`, everything falls back to the rule-based engine. The test suite runs with ML switched off, except `ml/tests.py`, which trains small models into a temporary folder.
+
+### Where the predictions appear
+
+- **Dashboard → AI insights** (refreshes every 30 seconds): matches scored today, average confidence, matches found only by the model, how often the model agrees with users' accept/reject decisions, category agreement, the latest predictions with probability bars, a confidence histogram, a feature-importance chart, category checks on new reports, and the active models' metrics. Reviewers see campus-wide numbers; everyone else sees their own reports. Administrators get a **Retrain models** button.
+- **AI models page** (`/ml/`, security staff and admins): the full comparison table, confusion matrices, per-category F1, feature importance and training history.
+- **Match cards:** "AI model: 87% likely the same item" next to the rule score.
+- **Report form:** while you type the title and description, the category model suggests a category with a one-click **Use** button.
+
+### Try it end to end
+
+```bash
+python manage.py seed_demo                 # demo accounts and reports
+python manage.py runserver                 # terminal 1, leave running
+
+# terminal 2
+python manage.py fetch_api_data --email officer@lostfinder.test --password "Demo-Pass-2026!"
+python manage.py train_model --rescore     # train, save, re-score existing data
+python manage.py simulate_incoming --count 10 --interval 5
+```
+
+`simulate_incoming` posts new found and lost reports through the API (as the demo accounts `grace` and `amina`); usually the lost report describes the same object as the found one. Sign in as `officer@lostfinder.test` and watch the dashboard update.
+
 ## How claims work
 
 ```text
@@ -307,6 +366,8 @@ All settings come from `.env` (see `.env.example`):
 | `DB_PASSWORD` | *(empty)* | PostgreSQL password |
 | `DB_HOST` | `localhost` | PostgreSQL host |
 | `DB_PORT` | `5432` | PostgreSQL port |
+| `ML_ENABLED` | `True` | Use the trained models. `False` falls back to rule-based matching only. |
+| `LOSTFINDER_API_URL` | `http://127.0.0.1:8000/api/v1/` | API used by `fetch_api_data` and `simulate_incoming` |
 
 **Using PostgreSQL:** create an empty database, set `DB_ENGINE=postgresql` plus the `DB_*` values in `.env`, and run `python manage.py migrate`.
 
@@ -329,6 +390,9 @@ All settings come from `.env` (see `.env.example`):
 | `python manage.py createsuperuser` | Create an administrator account |
 | `python manage.py seed_demo` | Load demo users, 6 lost and 6 found items, matches and claims ([details](#7-load-demo-data-optional)). Add `--reset` to re-create the data. |
 | `python manage.py run_matching` | Recalculate match suggestions for every open lost report. Run it after importing data straight into the database. |
+| `python manage.py fetch_api_data --email … --password …` | Download ML training data from the REST API into `ml/data/api_snapshot.json` (needs a running server and a security/staff account) |
+| `python manage.py train_model [--rescore] [--synthetic-only]` | Train the match and category models, print their metrics against the rule-based baseline, and save them to `ml/artifacts/`. `--rescore` refreshes every stored prediction. |
+| `python manage.py simulate_incoming [--count N --interval S]` | Post synthetic lost/found reports through the API to demo live predictions |
 | `python manage.py test` | Run the test suite |
 
 ## Running the tests
@@ -369,7 +433,11 @@ LOSTFinder/
 │   └── management/commands/   run_matching.py, seed_demo.py
 ├── claims/          Claims workflow (services.py), review queue, handovers, notifications
 ├── dashboard/       Public home page, role-based dashboard, metrics (metrics.py)
-├── api/             REST API: serializers, viewsets, permissions, URLs (/api/)
+├── api/             REST API: serializers, viewsets, permissions, URLs (/api/); ML endpoints in ml_views.py
+├── ml/              Machine learning: features.py, synthetic.py, dataset.py, training.py, predictor.py,
+│   │                insights.py (dashboard panel), model report page
+│   ├── management/commands/   fetch_api_data.py, train_model.py, simulate_incoming.py
+│   └── artifacts/   Trained models (joblib) and their metrics (json)
 ├── config/          Django settings and root URLs
 ├── templates/
 │   ├── base.html          Signed-in layout (AdminLTE with sidebar)
@@ -404,6 +472,8 @@ LOSTFinder/
 | `/claims/` | My claims | Signed in, onboarding done |
 | `/claims/review/` | Claim review queue | Security officers and staff |
 | `/claims/notifications/` | Notifications | Signed in |
+| `/ml/` | AI models report | Security officers and staff |
+| `/ml/retrain/` | Retrain the models (POST) | Staff |
 | `/admin/` | Django admin | Staff |
 | `/api/v1/` | REST API (see below) | API clients |
 | `/api/docs/`, `/api/schema/` | Swagger UI, OpenAPI schema | Anyone |
@@ -470,7 +540,11 @@ All paths start with `/api/v1/`. Lists are paginated: 12 per page, `?page=N`, wi
 | `POST claims/{id}/handover/` | `{"handover_location": "...", "handed_over_at": "<ISO datetime, optional>", "notes": "..."}` | Security officers and staff |
 | `GET notifications/` | Your notifications (`unread=true` for unread only) | Signed in |
 | `POST notifications/{id}/read/`, `notifications/read-all/` | Mark one, or all, as read | Signed in |
-| `GET dashboard/` | Dashboard card values and chart series for your role | Onboarded |
+| `GET dashboard/` | Dashboard card values and chart series for your role, including the AI insights | Onboarded |
+| `GET ml/training-data/` | Every report and every accepted/rejected match, for training (read by `fetch_api_data`) | Security officers and staff |
+| `GET ml/models/` | Active match and category models: version, test metrics, feature importances | Onboarded |
+| `POST ml/predict-match/` | `{"lost_item": id, "found_item": id}`: model probability, rule score and the feature values. `503` if no model is trained | Onboarded |
+| `POST ml/predict-category/` | `{"title": "...", "description": "..."}`: predicted category, confidence and alternatives | Onboarded |
 
 Errors use the usual HTTP status codes: `400` for invalid input or a step the workflow doesn't allow, with the reason in the body; `401` when not signed in; `403` when not allowed; `404` when not found or not visible to you; `409` for conflicts.
 

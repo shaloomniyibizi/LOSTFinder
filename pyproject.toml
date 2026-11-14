@@ -9,6 +9,10 @@ dependencies = [
     "dotenv>=0.9.9",
     "drf-spectacular>=0.30.0",
     "drf-spectacular-sidecar>=2026.10.1",
+    "joblib>=1.6.0",
+    "numpy>=2.5.4",
     "pillow>=12.3.0",
     "psycopg2-binary>=2.9.13",
+    "requests>=2.34.2",
+    "scikit-learn>=1.9.1",
 ]

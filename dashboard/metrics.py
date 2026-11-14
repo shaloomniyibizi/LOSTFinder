@@ -19,6 +19,7 @@ from accounts.decorators import is_reviewer
 from claims.models import Claim, ClaimReviewLog, ItemHandover
 from claims.services import ACTIVE_STATUSES
 from items.models import FoundItem, ItemCategory, LostItem, MatchSuggestion
+from ml.insights import ml_dashboard
 
 
 ACTIVITY_DAYS = 14
@@ -334,6 +335,8 @@ def build_dashboard(user):
     data["greeting"] = greeting(user)
     data["role_label"] = role_label(user)
     data["week_total"], data["week_trend"] = week_trend(data["charts"]["activity"])
+    data["ml"] = ml_dashboard(user, reviewer)
+    data["can_retrain"] = user.is_staff
     return data
 
 
@@ -347,7 +350,15 @@ def serialize_metrics(data):
         } | {
             "reports_7d": data["week_total"],
             "reports_7d_trend": data["week_trend"],
+        } | {
+            stat["key"]: stat["value"] for stat in data["ml"]["stats"]
         },
-        "charts": data["charts"],
+        "charts": data["charts"] | data["ml"]["charts"],
+        "ml": {
+            "enabled": data["ml"]["enabled"],
+            "latest": data["ml"]["latest"],
+            "categories": data["ml"]["categories"],
+            "models": data["ml"]["models"],
+        },
         "generated_at": timezone.localtime().strftime("%H:%M:%S"),
     }

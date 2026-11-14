@@ -3,7 +3,7 @@ from django.urls import include, path
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 from rest_framework.routers import DefaultRouter
 
-from . import views
+from . import ml_views, views
 
 
 router = DefaultRouter()
@@ -20,6 +20,10 @@ v1 = [
     path("auth/logout/", views.LogoutView.as_view(), name="api-logout"),
     path("me/", views.MeView.as_view(), name="api-me"),
     path("dashboard/", views.DashboardView.as_view(), name="api-dashboard"),
+    path("ml/training-data/", ml_views.TrainingDataView.as_view(), name="api-ml-training-data"),
+    path("ml/models/", ml_views.ModelInfoView.as_view(), name="api-ml-models"),
+    path("ml/predict-match/", ml_views.PredictMatchView.as_view(), name="api-ml-predict-match"),
+    path("ml/predict-category/", ml_views.PredictCategoryView.as_view(), name="api-ml-predict-category"),
     path("", include(router.urls)),
 ]
 

@@ -114,6 +114,108 @@
     </div>
 </div>
 
+{# ---------- 3b. AI insights (ml app) ---------- #}
+<div class="card shadow-sm mb-4 lf-ml" id="ai-insights">
+    <div class="card-header d-flex flex-wrap align-items-center gap-2">
+        <h3 class="card-title mb-0 me-auto">
+            <i class="bi bi-cpu me-1 text-primary" aria-hidden="true"></i> AI insights
+            <small class="text-secondary fw-normal ms-1">
+                {% if dash.role == "reviewer" %}campus-wide{% else %}about your reports{% endif %}
+            </small>
+        </h3>
+        {% if dash.role == "reviewer" %}
+            <a class="btn btn-sm btn-outline-secondary" href="{% url 'ml_model_report' %}">
+                <i class="bi bi-clipboard-data me-1" aria-hidden="true"></i>Model report
+            </a>
+        {% endif %}
+        {% if dash.can_retrain %}
+            <form method="post" action="{% url 'ml_retrain' %}" class="d-inline" data-retrain-form>
+                {% csrf_token %}
+                <input type="hidden" name="next" value="{% url 'dashboard' %}#ai-insights">
+                <button type="submit" class="btn btn-sm btn-primary">
+                    <i class="bi bi-arrow-repeat me-1" aria-hidden="true"></i><span>Retrain models</span>
+                </button>
+            </form>
+        {% endif %}
+    </div>
+
+    {% if not dash.ml.enabled %}
+        <div class="card-body text-center text-secondary py-4">
+            <span class="lf-empty-icon mb-2"><i class="bi bi-cpu"></i></span>
+            <p class="mb-1">No match model has been trained yet, so matching uses the rule-based score only.</p>
+            <p class="small mb-0">Run <code>python manage.py train_model --rescore</code>{% if dash.can_retrain %} or use <strong>Retrain models</strong>{% endif %}.</p>
+        </div>
+    {% else %}
+        <div class="card-body">
+            {# Stat tiles #}
+            <div class="row g-3 mb-4">
+                {% for stat in dash.ml.stats %}
+                    <div class="col-6 col-md-4 col-xl">
+                        <div class="lf-ml-stat h-100">
+                            <span class="lf-glance-icon bg-{{ stat.color }}-subtle text-{{ stat.color }}-emphasis">
+                                <i class="bi {{ stat.icon }}" aria-hidden="true"></i>
+                            </span>
+                            <div class="min-w-0">
+                                <div class="small text-secondary fw-semibold">{{ stat.label }}</div>
+                                <div class="fs-4 fw-bold lf-table-num" data-metric="{{ stat.key }}">{{ stat.value }}</div>
+                                <div class="small text-secondary text-truncate" title="{{ stat.hint }}">{{ stat.hint }}</div>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+
+            <div class="row g-4">
+                {# Latest predictions: drawn by dashboard.js from the metrics JSON #}
+                <div class="col-xl-7">
+                    <h4 class="h6 fw-semibold mb-2">Latest match predictions</h4>
+                    <p class="small text-secondary mb-2">
+                        Probability from the trained model next to the rule-based score.
+                        <span class="badge text-bg-warning">Model only</span> marks pairs the rules scored too low,
+                        suggested because the model was at least {{ dash.ml.threshold }}% sure.
+                    </p>
+                    <div data-ml-latest aria-live="polite"></div>
+                </div>
+
+                <div class="col-xl-5">
+                    <h4 class="h6 fw-semibold mb-2">How confident is the model?</h4>
+                    <div class="lf-chart lf-chart-sm">
+                        <canvas id="chart-ml-confidence" role="img"
+                                aria-label="Bar chart: number of match suggestions per model probability band"></canvas>
+                    </div>
+                    <details class="mt-2 small">
+                        <summary>Show data table</summary>
+                        <div class="table-responsive mt-2" data-table-for="ml_confidence"></div>
+                    </details>
+                </div>
+
+                <div class="col-xl-4 col-lg-6">
+                    <h4 class="h6 fw-semibold mb-2">What the model looks at</h4>
+                    <div class="lf-chart lf-chart-sm">
+                        <canvas id="chart-ml-features" role="img"
+                                aria-label="Bar chart: importance of each feature in the match model"></canvas>
+                    </div>
+                    <details class="mt-2 small">
+                        <summary>Show data table</summary>
+                        <div class="table-responsive mt-2" data-table-for="ml_features"></div>
+                    </details>
+                </div>
+
+                <div class="col-xl-4 col-lg-6">
+                    <h4 class="h6 fw-semibold mb-2">Category check on new reports</h4>
+                    <p class="small text-secondary mb-2">The category model reads each report and flags reports that may be filed under the wrong category.</p>
+                    <div data-ml-categories aria-live="polite"></div>
+                </div>
+
+                <div class="col-xl-4">
+                    <h4 class="h6 fw-semibold mb-2">Active models</h4>
+                    <div data-ml-models></div>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+</div>
+
 {# ---------- 4. Work tables (tabs) + recent activity ---------- #}
 <div class="row g-4 mb-4">
     <div class="col-xl-8">
