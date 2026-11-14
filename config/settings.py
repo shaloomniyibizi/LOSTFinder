@@ -1,5 +1,6 @@
 from pathlib import Path
 import os
+import sys
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -19,10 +20,16 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'rest_framework',
+    'rest_framework.authtoken',
+    'drf_spectacular',
+    'drf_spectacular_sidecar',
     'accounts',
     'items',
     'claims',
     'dashboard',
+    'api',
+    'ml',
 ]
 
 MIDDLEWARE = [
@@ -122,3 +129,59 @@ LOGOUT_REDIRECT_URL = "login"
 
 MEDIA_URL = "media/"
 MEDIA_ROOT = BASE_DIR / "media"
+
+
+# ---------- REST API (api/) ----------
+# Browsers use their login session (CSRF-protected); other clients send
+# "Authorization: Token <key>" from POST /api/v1/auth/token/.
+REST_FRAMEWORK = {
+    "DEFAULT_AUTHENTICATION_CLASSES": [
+        # Token first, so a missing login answers 401 with a WWW-Authenticate header.
+        "rest_framework.authentication.TokenAuthentication",
+        "rest_framework.authentication.SessionAuthentication",
+    ],
+    # Same gate as the pages: signed in, onboarding complete.
+    "DEFAULT_PERMISSION_CLASSES": [
+        "rest_framework.permissions.IsAuthenticated",
+        "api.permissions.IsOnboarded",
+    ],
+    "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
+    "PAGE_SIZE": 12,
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+}
+
+SPECTACULAR_SETTINGS = {
+    "TITLE": "LOSTFinder API",
+    "DESCRIPTION": (
+        "Campus lost-and-found: report lost and found items, review match "
+        "suggestions, claim items and record handovers."
+    ),
+    "VERSION": "1.0.0",
+    "SERVE_INCLUDE_SCHEMA": False,
+    # Separate request/response schemas, so uploads show as files.
+    "COMPONENT_SPLIT_REQUEST": True,
+    # Swagger UI from the installed sidecar package, not a CDN.
+    "SWAGGER_UI_DIST": "SIDECAR",
+    "SWAGGER_UI_FAVICON_HREF": "SIDECAR",
+    "REDOC_DIST": "SIDECAR",
+    # Readable names for the status enums several models share a field name for.
+    # (A claim review log's decisions use the same values as claim statuses.)
+    "ENUM_NAME_OVERRIDES": {
+        "LostItemStatusEnum": "items.models.LostItem.Status",
+        "FoundItemStatusEnum": "items.models.FoundItem.Status",
+        "MatchStatusEnum": "items.models.MatchSuggestion.Status",
+        "ClaimStatusEnum": "claims.models.Claim.Status",
+        "ReviewDecisionEnum": "api.serializers.REVIEW_DECISIONS",
+    },
+}
+
+
+# ---------- Machine learning (ml/) ----------
+# Trained models (joblib) and the training-data snapshot read from the API.
+ML_MODEL_DIR = BASE_DIR / "ml" / "artifacts"
+ML_DATA_DIR = BASE_DIR / "ml" / "data"
+# The test suite runs without the trained models, so existing tests check
+# the rule-based engine on its own; ml/tests.py switches them on.
+ML_ENABLED = os.getenv("ML_ENABLED", "True").lower() == "true" and "test" not in sys.argv[1:2]
+# Where `manage.py fetch_api_data` and `simulate_incoming` reach the API.
+LOSTFINDER_API_URL = os.getenv("LOSTFINDER_API_URL", "http://127.0.0.1:8000/api/v1/")

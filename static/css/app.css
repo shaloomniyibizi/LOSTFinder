@@ -561,3 +561,61 @@ html { scroll-padding-top: 4.5rem; }
 /* Overdue claims: amber-on-dark tile, plus a warning icon and the word "Overdue". */
 .lf-hero-stat.is-alert { background: rgba(255, 193, 7, .2); border-color: rgba(255, 193, 7, .55); }
 .lf-hero-stat.is-alert .lf-hero-stat-icon { background: #ffc107; color: #3d2c00; }
+
+/* ---------- AI insights panel (dashboard) ---------- */
+.lf-ml-stat {
+    display: flex;
+    align-items: flex-start;
+    gap: .75rem;
+    padding: .75rem;
+    border: 1px solid var(--bs-border-color);
+    border-radius: .5rem;
+    background: var(--bs-tertiary-bg);
+}
+
+.lf-ml-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 7.5rem;
+    gap: .25rem 1rem;
+    align-items: center;
+    padding: .55rem 0;
+    border-bottom: 1px solid var(--bs-border-color-translucent);
+}
+.lf-ml-row:last-child { border-bottom: 0; }
+
+.lf-ml-pair {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Probability bar: the filled share is the model's probability. */
+.lf-prob {
+    height: .5rem;
+    border-radius: 999px;
+    background: var(--lf-grid);
+    overflow: hidden;
+}
+.lf-prob > span {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    background: var(--lf-series-lost);
+}
+
+.lf-ml-model + .lf-ml-model { margin-top: .75rem; }
+.lf-ml-model dl { display: grid; grid-template-columns: auto 1fr; gap: .15rem .75rem; margin: 0; }
+.lf-ml-model dt { font-weight: 500; color: var(--bs-secondary-color); }
+.lf-ml-model dd { margin: 0; font-variant-numeric: tabular-nums; }
+
+/* Category suggestion under the report form's category field. */
+.lf-category-hint { min-height: 1.75rem; }
+
+/* Confusion matrix on the model report page. */
+.lf-cm td { text-align: center; font-variant-numeric: tabular-nums; }
+.lf-cm td.is-diagonal { font-weight: 700; background: var(--bs-success-bg-subtle); }
+.lf-feature-bar { flex: 0 0 6rem; }
+.lf-feature-value { width: 3.5rem; text-align: end; }
+/* Let the five stat tiles share one row: truncated hints must not set a min width. */
+.lf-ml .row > [class*="col"] { min-width: 0; }

@@ -150,6 +150,13 @@ class MatchSuggestion(models.Model):
         help_text="Match score from 0 to 100.",
     )
     reason = models.TextField(blank=True)
+    ml_probability = models.FloatField(
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(0), MaxValueValidator(1)],
+        help_text="The match model's probability that both reports are the "
+                  "same item (empty when no model was available).",
+    )
     status = models.CharField(
         max_length=20,
         choices=Status.choices,
@@ -175,6 +182,13 @@ class MatchSuggestion(models.Model):
                 name="match_status_score_idx",
             ),
         ]
+
+    @property
+    def ml_percent(self):
+        """The model's probability as a whole percentage, or None."""
+        if self.ml_probability is None:
+            return None
+        return round(self.ml_probability * 100)
 
     def __str__(self):
         return (

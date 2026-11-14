@@ -1,4 +1,5 @@
 
+import logging
 import re
 from difflib import SequenceMatcher
 
@@ -7,8 +8,15 @@ from django.db import transaction
 from .models import LostItem, FoundItem, MatchSuggestion
 
 
+logger = logging.getLogger(__name__)
+
+
 # Only suggestions scoring at least this value are saved.
 MIN_MATCH_SCORE = 35
+
+# The trained match model (ml app) can also propose a pair the rules
+# score too low, when it is at least this confident.
+ML_MATCH_THRESHOLD = 0.6
 
 
 def normalize_text(value):
@@ -147,12 +155,31 @@ MATCHABLE_FOUND_STATUSES = (
 )
 
 
-def _refresh_suggestion(lost_item, found_item, existing):
+def predict_pairs(pairs):
+    """
+    The match model's probability for each (lost, found) pair, or a list of
+    None when no model is available. Predicting in one batch is much faster
+    than one pair at a time.
+    """
+    from ml.predictor import match_probabilities  # ml depends on items
+
+    try:
+        probabilities = match_probabilities(pairs)
+    except Exception:  # predictions are advisory: never block matching
+        logger.exception("Match model prediction failed")
+        probabilities = None
+    return probabilities if probabilities is not None else [None] * len(pairs)
+
+
+def _refresh_suggestion(lost_item, found_item, existing, probability=None):
     """
     Create, update, or remove the suggestion for one lost/found pair.
 
-    Accepted or rejected suggestions are left untouched. Returns the
-    pending suggestion, or None when the pair is not a match.
+    A pair becomes a suggestion when the rule-based score reaches
+    MIN_MATCH_SCORE, or when the match model's `probability` reaches
+    ML_MATCH_THRESHOLD. Accepted or rejected suggestions are left
+    untouched. Returns the pending suggestion, or None when the pair is
+    not a match.
     """
     if existing and existing.status != MatchSuggestion.Status.PENDING:
         return None
@@ -164,8 +191,9 @@ def _refresh_suggestion(lost_item, found_item, existing):
         return None
 
     score, explanation = calculate_match(lost_item, found_item)
+    model_match = probability is not None and probability >= ML_MATCH_THRESHOLD
 
-    if score < MIN_MATCH_SCORE:
+    if score < MIN_MATCH_SCORE and not model_match:
         # Remove a stale pending suggestion if the reports
         # no longer meet the minimum score.
         if existing:
@@ -175,7 +203,8 @@ def _refresh_suggestion(lost_item, found_item, existing):
     if existing:
         existing.score = score
         existing.reason = explanation
-        existing.save(update_fields=["score", "reason"])
+        existing.ml_probability = probability
+        existing.save(update_fields=["score", "reason", "ml_probability"])
         return existing
 
     return MatchSuggestion.objects.create(
@@ -183,6 +212,7 @@ def _refresh_suggestion(lost_item, found_item, existing):
         found_item=found_item,
         score=score,
         reason=explanation,
+        ml_probability=probability,
         status=MatchSuggestion.Status.PENDING,
     )
 
@@ -221,19 +251,20 @@ def match_lost_item(lost_item):
         ).delete()
         return []
 
-    found_items = FoundItem.objects.filter(
+    found_items = list(FoundItem.objects.filter(
         status__in=MATCHABLE_FOUND_STATUSES
-    ).exclude(reporter_id=lost_item.reporter_id)
+    ).exclude(reporter_id=lost_item.reporter_id))
 
     existing = {
         s.found_item_id: s
         for s in lost_item.match_suggestions.all()
     }
+    probabilities = predict_pairs([(lost_item, f) for f in found_items])
 
     suggestions = []
-    for found_item in found_items:
+    for found_item, probability in zip(found_items, probabilities):
         suggestion = _refresh_suggestion(
-            lost_item, found_item, existing.get(found_item.pk)
+            lost_item, found_item, existing.get(found_item.pk), probability
         )
         if suggestion:
             suggestions.append(suggestion)
@@ -263,19 +294,20 @@ def match_found_item(found_item):
             sync_lost_item_status(lost_item)
         return []
 
-    lost_items = LostItem.objects.filter(
+    lost_items = list(LostItem.objects.filter(
         status__in=ACTIVE_LOST_STATUSES
-    ).exclude(reporter_id=found_item.reporter_id)
+    ).exclude(reporter_id=found_item.reporter_id))
 
     existing = {
         s.lost_item_id: s
         for s in found_item.match_suggestions.all()
     }
+    probabilities = predict_pairs([(l, found_item) for l in lost_items])
 
     suggestions = []
-    for lost_item in lost_items:
+    for lost_item, probability in zip(lost_items, probabilities):
         suggestion = _refresh_suggestion(
-            lost_item, found_item, existing.get(lost_item.pk)
+            lost_item, found_item, existing.get(lost_item.pk), probability
         )
         if suggestion:
             suggestions.append(suggestion)

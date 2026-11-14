@@ -219,6 +219,9 @@ def review_claim(claim, reviewer, decision, comments=""):
 
 @transaction.atomic
 def record_handover(claim, reviewer, handover_location, handed_over_at, notes=""):
+    if claim.claimant_id == reviewer.id:
+        raise ValidationError("You cannot hand an item over to yourself.")
+
     handover = ItemHandover(
         claim=claim,
         handed_over_by=reviewer,

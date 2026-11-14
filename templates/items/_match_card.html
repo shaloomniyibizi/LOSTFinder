@@ -30,6 +30,12 @@ can_decide: the viewer owns the lost item and may accept or reject.
                 </span>
             </div>
             <small class="text-secondary"><span class="visually-hidden">{{ suggestion.score }}% match. </span>Suggested {{ suggestion.created_at|date:"M j, Y" }}</small>
+            {% if suggestion.ml_percent is not None %}
+                <div class="small mt-1" title="Probability from the trained match model">
+                    <i class="bi bi-cpu text-primary" aria-hidden="true"></i>
+                    AI model: <strong>{{ suggestion.ml_percent }}%</strong> likely the same item
+                </div>
+            {% endif %}
         </div>
     </div>
 

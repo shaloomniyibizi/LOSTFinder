@@ -54,6 +54,12 @@
                             </div>
                             <div class="col-md-5">
                                 {% include "accounts/_icon_field.html" with field=form.category icon="bi-grid" %}
+                                <div class="lf-category-hint small mt-1" aria-live="polite"
+                                     data-category-hint
+                                     data-url="{% url 'ml_suggest_category' %}"
+                                     data-title="{{ form.title.id_for_label }}"
+                                     data-description="{{ form.description.id_for_label }}"
+                                     data-category="{{ form.category.id_for_label }}"></div>
                             </div>
                             <div class="col-12">
                                 {% include "accounts/_icon_field.html" with field=form.description icon="bi-card-text" %}

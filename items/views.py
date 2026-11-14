@@ -1,6 +1,7 @@
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.core.exceptions import ValidationError
 from django.db.models.deletion import ProtectedError
 from django.core.paginator import Paginator
 from django.db.models import Count, Q
@@ -13,12 +14,8 @@ from claims.models import Claim
 from claims.services import can_claim
 from .cards import report_card
 from .forms import LostItemForm, FoundItemForm
-from .matching import (
-    match_found_item,
-    match_lost_item,
-    sync_lost_item_status,
-)
 from .models import ItemCategory, LostItem, FoundItem, MatchSuggestion
+from .services import decide_match, delete_report, run_matching
 
 
 PAGE_SIZE = 12   # four rows of three cards
@@ -194,10 +191,7 @@ def save_item_form(request, model, form_class, item_type, pk=None):
 
             saved_item.save()
 
-            matcher = (
-                match_lost_item if model is LostItem else match_found_item
-            )
-            suggestions = matcher(saved_item)
+            suggestions = run_matching(saved_item)
 
             messages.success(
                 request,
@@ -269,16 +263,8 @@ def delete_item(request, model, item_type, pk, list_url_name):
     )
 
     if request.method == "POST":
-        # Deleting a found item cascades to its suggestions, so the
-        # affected lost items may no longer have a match.
-        affected_lost_items = []
-        if model is FoundItem:
-            affected_lost_items = list(
-                LostItem.objects.filter(match_suggestions__found_item=item)
-            )
-
         try:
-            item.delete()
+            delete_report(item)
         except ProtectedError:
             # For example, a found item may be protected by existing claims.
             messages.error(
@@ -287,9 +273,6 @@ def delete_item(request, model, item_type, pk, list_url_name):
                 "to other records. Please contact an administrator.",
             )
         else:
-            for lost_item in affected_lost_items:
-                sync_lost_item_status(lost_item)
-
             messages.success(
                 request,
                 f"{item_type} item report deleted successfully.",
@@ -393,20 +376,12 @@ def match_update(request, pk):
         lost_item__reporter=request.user,
     )
 
-    decisions = {
-        "accept": MatchSuggestion.Status.ACCEPTED,
-        "reject": MatchSuggestion.Status.REJECTED,
-        "reset": MatchSuggestion.Status.PENDING,
-    }
-    new_status = decisions.get(request.POST.get("action"))
-
-    if new_status is None:
-        messages.error(request, "Unknown action.")
+    try:
+        decide_match(suggestion, request.POST.get("action"))
+    except ValidationError as error:
+        messages.error(request, " ".join(error.messages))
     else:
-        suggestion.status = new_status
-        suggestion.save(update_fields=["status"])
-        sync_lost_item_status(suggestion.lost_item)
-
+        new_status = suggestion.status
         if new_status == MatchSuggestion.Status.ACCEPTED:
             messages.success(
                 request,
